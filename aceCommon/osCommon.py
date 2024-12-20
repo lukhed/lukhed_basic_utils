@@ -1,16 +1,17 @@
-import os
 from pathlib import Path
 
 def create_file_path_string(list_of_dir=None, base_path_list=None, **kwargs):
     """
-    Creates a file path string by combining a base directory (as a list) with a list of subdirectories.
+    Creates a file path string by combining your current base directory with a list of subdirectories.
 
     Args:
-        list_of_dir (list of str): List of directory names to append to the base path.
-        base_path_list (list of str): List of directory names representing the base path.
-        **kwargs:
-            parent (int): Number of parent directories to go up from the current file.
-            ace_parent (int): Number of parent directories to go up from the aceCommon package location.
+        list_of_dir (list, optional): 
+            List of directory names to append to your path. Defaults to None and will return your working directory 
+            in this case.
+
+        base_path_list (list, optional): 
+            List of directory names to set your own base directory path. Defaults to None and your working 
+            directory will be used as base in this case.
 
     Returns:
         str: The constructed file path string.
