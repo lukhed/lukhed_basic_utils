@@ -1,7 +1,8 @@
-import os
 import sys
+import os
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
+
 from aceCommon.osCommon import create_file_path_string, append_to_dir, create_root_path_starting_from_drive
 
 def test_create_file_path_string():
