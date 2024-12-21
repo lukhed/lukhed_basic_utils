@@ -2,7 +2,7 @@ import os
 import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
-from aceCommon import create_file_path_string, append_to_dir
+from aceCommon.osCommon import create_file_path_string, append_to_dir, create_root_path_starting_from_drive
 
 def test_create_file_path_string():
     print("Test 1: Base path provided as a list:")
@@ -73,5 +73,8 @@ def test_append_to_dir():
     print(result)
     assert Path(result) == Path(expected), "Root directory append test failed"
 
+def test_create_root_path_starting_from_drive():
+    print(create_root_path_starting_from_drive('C:'))
+
 if __name__ == '__main__':
-    test_append_to_dir()
+    test_create_root_path_starting_from_drive()
