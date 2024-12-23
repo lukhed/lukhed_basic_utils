@@ -180,6 +180,24 @@ def get_week_number_for_date(provided_date=None, provided_date_format='%Y%m%d'):
     return today.isocalendar()[1]
 
 def get_current_year(convert_to_str=True):
+    """
+    Retrieves the current year.
+
+    Parameters:
+        convert_to_str (bool, optional): 
+            If True, returns the year as a string. 
+            If False, returns the year as an integer. Defaults to True.
+
+    Returns:
+        str or int: The current year in string or integer format, depending on the value of `convert_to_str`.
+
+    Example:
+        >>> get_current_year()
+        '2024'
+
+        >>> get_current_year(convert_to_str=False)
+        2024
+    """
     current_year = datetime.now().year
     if convert_to_str:
         return str(current_year)
@@ -686,6 +704,28 @@ def convert_to_iso(from_ts, from_format="%Y%m%d%H%M%S", from_tz="US/Eastern"):
     # Return the ISO 8601 formatted string
     return utc_time.isoformat()
 
+def convert_date_format(date_string, from_format="%Y%m%d%H%M%S", to_format="%m-%d-%Y"):
+    """
+    Converts a date string from one format to another.
+
+    Parameters:
+        date_string (str): The date string to convert (e.g., "20241222153045").
+        from_format (str): The format of the input date string.
+                           Defaults to "%Y%m%d%H%M%S".
+        to_format (str): The desired output format for the date string.
+                         Defaults to "%m-%d-%Y".
+
+    Returns:
+        str: The converted date string in the specified output format.
+
+    Example:
+        >>> convert_date_format("20241222153045", from_format="%Y%m%d%H%M%S", to_format="%m-%d-%Y")
+        '12-22-2024'
+
+        >>> convert_date_format("2024-12-22", from_format="%Y-%m-%d", to_format="%d/%m/%Y")
+        '22/12/2024'
+    """
+    return datetime.strptime(date_string, from_format).strftime(to_format)
 
 ####################
 # Calculation Stuff
