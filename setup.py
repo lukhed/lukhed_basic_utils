@@ -17,7 +17,6 @@ setup(
         "Operating System :: OS Independent",
     ],
     install_requires=[
-        "pytz>=2024.2",
         "python-dateutil>=2.9.0",
         "requests>=2.32.3",
         "beautifulsoup4>=4.12.3",

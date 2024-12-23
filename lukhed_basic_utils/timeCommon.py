@@ -1,9 +1,9 @@
 from datetime import datetime, date, timedelta
 from datetime import time as dt_t
-import pytz
 from dateutil.parser import parse
 import calendar
 import time
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 
 ####################
@@ -170,10 +170,11 @@ def get_week_number_for_date(provided_date=None, provided_date_format='%Y%m%d'):
     """
     if provided_date is None:
         # Use the current date if no date is provided
-        today = date.today()
+        today = create_timestamp(output_format="%Y%m%d%H%M%S")
+        provided_date_format = "%Y%m%d%H%M%S"
     else:
         # Parse the provided date string
-        date_components = get_date_time_components_given_format(provided_date, provided_date_format)
+        date_components = extract_date_time_components(provided_date, provided_date_format)
         today = date(date_components['year'], date_components['month'], date_components['day'])
     
     # Return the ISO week number
@@ -404,14 +405,14 @@ def get_tomorrow_date(convert_to_string_format=None):
 ####################
 def convert_non_python_format(date_string, time_zone="US/Eastern", single_output_format=None):
     """
-    Parses a non-standard or human-readable date/time string (e.g., ISO 8601, epoch) and converts it to 
-    the specified timezone. Optionally, returns the result in a single specified format.
+    Parses a non-standard or human-readable date/time string (e.g., ISO 8601, epoch) and converts 
+    it to the specified timezone. Optionally, returns the result in a single specified format.
 
     Parameters:
         date_string (str): The date/time string to parse.
         time_zone (str): The desired timezone for the output (default is "US/Eastern").
-        single_output_format (str, optional): A format string for `strftime` to return a single formatted 
-                                              output. If None, returns a dictionary with various components 
+        single_output_format (str, optional): A format string for `strftime` to return a single formatted
+                                              output. If None, returns a dictionary with various components
                                               and common formats.
 
     Returns:
@@ -425,8 +426,8 @@ def convert_non_python_format(date_string, time_zone="US/Eastern", single_output
         # Parse the input date string
         parsed_time = parse(date_string)
         
-        # Convert to the target timezone
-        target_tz = pytz.timezone(time_zone)
+        # Convert to the target timezone using zoneinfo
+        target_tz = ZoneInfo(time_zone)
         localized_time = parsed_time.astimezone(target_tz)
 
         if single_output_format is None:
@@ -588,43 +589,40 @@ def convert_string_to_datetime(date_time_string, string_format='%Y%m%dH%M%S'):
     """
     return datetime.strptime(date_time_string, string_format)
 
-def convert_string_to_timezone(pytz_timezone):
+def convert_string_to_timezone(zone_name):
     """
-    Converts a given timezone string to a `pytz.timezone` object.
+    Converts a given timezone string to a `zoneinfo.ZoneInfo` object.
 
-    This function accepts any valid timezone string supported by `pytz` 
-    and returns the corresponding timezone object. Below are examples of valid timezones:
+    This function accepts any valid timezone string supported by `zoneinfo`
+    and returns the corresponding timezone object. Below are examples of 
+    valid timezones (among many others):
         - US/Alaska
-        - US/Aleutian
         - US/Arizona
         - US/Central
-        - US/East-Indiana
         - US/Eastern
         - US/Hawaii
-        - US/Indiana-Starke
-        - US/Michigan
-        - US/Mountain
         - US/Pacific
-        - US/Pacific-New
-        - US/Samoa
+        - etc.
 
     Parameters:
-        pytz_timezone (str): The name of the timezone (e.g., "US/Eastern").
-                             Must be a valid timezone string recognized by `pytz`.
+        zone_name (str): The name of the timezone (e.g., "US/Eastern").
+                         Must be a valid timezone string recognized by `zoneinfo`.
 
     Returns:
-        pytz.timezone: The `pytz.timezone` object corresponding to the given timezone string.
+        zoneinfo.ZoneInfo: The `ZoneInfo` object corresponding to the given timezone string.
 
     Raises:
-        pytz.UnknownTimeZoneError: If the provided timezone string is not recognized.
+        ValueError: If the provided timezone string is not recognized.
 
     Example:
-        >>> tz = convert_timezone("US/Eastern")
+        >>> tz = convert_string_to_timezone("US/Eastern")
         >>> print(tz)
-        US/Eastern
+        zoneinfo.ZoneInfo(key='US/Eastern')
     """
-
-    return pytz.timezone(pytz_timezone)
+    try:
+        return ZoneInfo(zone_name)
+    except ZoneInfoNotFoundError as e:
+        raise ValueError(f"Unrecognized timezone: {zone_name}") from e
 
 def convert_to_unix(from_ts, from_format="%Y%m%d%H%M%S", from_tz="US/Eastern"):
     """
@@ -635,15 +633,16 @@ def convert_to_unix(from_ts, from_format="%Y%m%d%H%M%S", from_tz="US/Eastern"):
         from_format (str, optional): The format of the input timestamp string.
                                      Defaults to "%Y%m%d%H%M%S".
         from_tz (str, optional): The timezone of the input timestamp string.
-                                 Must be a valid timezone name recognized by `pytz`.
+                                 Must be a valid timezone name recognized by `zoneinfo`.
                                  Defaults to "US/Eastern".
 
     Returns:
         int: The Unix timestamp (seconds since epoch, UTC) corresponding to the input timestamp.
 
     Raises:
-        ValueError: If `from_ts` does not match the specified `from_format`.
-        pytz.UnknownTimeZoneError: If `from_tz` is not a valid timezone.
+        ValueError: 
+            - If `from_ts` does not match the specified `from_format`.
+            - If `from_tz` is not recognized by `zoneinfo`.
 
     Example:
         >>> convert_to_unix("20241222101530", from_format="%Y%m%d%H%M%S", from_tz="US/Eastern")
@@ -652,18 +651,24 @@ def convert_to_unix(from_ts, from_format="%Y%m%d%H%M%S", from_tz="US/Eastern"):
         >>> convert_to_unix("2024-12-22 10:15:30", from_format="%Y-%m-%d %H:%M:%S", from_tz="US/Eastern")
         1734863730
     """
+    try:
+        # Parse the input timestamp string to a naive datetime object
+        local_time = datetime.strptime(from_ts, from_format)
+    except ValueError as e:
+        raise ValueError(
+            f"Could not parse '{from_ts}' with format '{from_format}': {e}"
+        ) from e
+    
+    try:
+        # Convert the naive datetime to a timezone-aware datetime in from_tz
+        tz = ZoneInfo(from_tz)
+    except ZoneInfoNotFoundError as e:
+        raise ValueError(f"Unrecognized timezone: {from_tz}") from e
 
-    # Set the time zone for the input timestamp
-    from_zone = pytz.timezone(from_tz)
-
-    # Parse the input timestamp string to a datetime object
-    local_time = datetime.strptime(from_ts, from_format)
-
-    # Localize the datetime object to the provided time zone
-    local_time = from_zone.localize(local_time)
+    local_time = local_time.replace(tzinfo=tz)
 
     # Convert the localized time to UTC
-    utc_time = local_time.astimezone(pytz.utc)
+    utc_time = local_time.astimezone(ZoneInfo("UTC"))
 
     # Convert UTC datetime to Unix timestamp
     unix_timestamp = int(utc_time.timestamp())
@@ -676,32 +681,42 @@ def convert_to_iso(from_ts, from_format="%Y%m%d%H%M%S", from_tz="US/Eastern"):
 
     Parameters:
         from_ts (str): The input timestamp string to be converted (e.g., "20241222101530").
-        from_format (str, optional): The format of the input timestamp. Defaults to "%Y%m%d%H%M%S".
-        from_tz (str, optional): The time zone of the input timestamp. Defaults to "US/Eastern".
+        from_format (str, optional): The format of the input timestamp. 
+                                     Defaults to "%Y%m%d%H%M%S".
+        from_tz (str, optional): The time zone of the input timestamp. 
+                                 Defaults to "US/Eastern".
 
     Returns:
         str: The ISO 8601 formatted timestamp in UTC.
 
     Raises:
-        ValueError: If the input timestamp cannot be parsed.
+        ValueError: If the input timestamp cannot be parsed or the time zone is not recognized.
 
     Example:
         >>> convert_to_iso("20241222101530", from_format="%Y%m%d%H%M%S", from_tz="US/Eastern")
         '2024-12-22T15:15:30+00:00'
     """
-    # Set the time zone for the input timestamp
-    from_zone = pytz.timezone(from_tz)
+    try:
+        # Parse the input timestamp string to a naive datetime object
+        local_time = datetime.strptime(from_ts, from_format)
+    except ValueError as e:
+        raise ValueError(
+            f"Could not parse '{from_ts}' with format '{from_format}': {e}"
+        ) from e
 
-    # Parse the input timestamp string to a datetime object
-    local_time = datetime.strptime(from_ts, from_format)
+    try:
+        # Convert the naive datetime to a timezone-aware datetime in from_tz
+        tz = ZoneInfo(from_tz)
+    except ZoneInfoNotFoundError as e:
+        raise ValueError(f"Unrecognized timezone: {from_tz}") from e
 
-    # Localize the datetime object to the provided time zone
-    local_time = from_zone.localize(local_time)
+    # Assign the local time to the specified zone
+    local_time = local_time.replace(tzinfo=tz)
 
     # Convert the localized time to UTC
-    utc_time = local_time.astimezone(pytz.utc)
+    utc_time = local_time.astimezone(ZoneInfo("UTC"))
 
-    # Return the ISO 8601 formatted string
+    # Return the ISO 8601 formatted string (e.g., '2024-12-22T15:15:30+00:00')
     return utc_time.isoformat()
 
 def convert_date_format(date_string, from_format="%Y%m%d%H%M%S", to_format="%m-%d-%Y"):
