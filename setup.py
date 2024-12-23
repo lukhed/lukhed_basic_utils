@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="aceCommon",
+    name="acecommon",
     version="0.1.1",
     description="A collection of common utility functions",
     long_description=open("README.md").read(),
