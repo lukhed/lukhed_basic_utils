@@ -1,6 +1,6 @@
-from aceCommon import osCommon as osC
-from aceCommon import fileCommon as fC
-from aceCommon import timeCommon as tC
+from lukhed_basic_utils import osCommon as osC
+from lukhed_basic_utils import fileCommon as fC
+from lukhed_basic_utils import timeCommon as tC
 
 class AceLogging:
     """
