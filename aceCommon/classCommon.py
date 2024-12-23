@@ -55,9 +55,9 @@ class AceLogging:
             self._check_create_dir_structure()
 
     def _check_create_dir_structure(self):
-        if osC.check_if_dir_exists(self.ace_log_directory, full_path=1) != 1:
+        if not osC.check_if_dir_exists(self.ace_log_directory):
             osC.create_dir(self.ace_log_directory)
-        if osC.check_if_file_exists(self.ace_log_file_path, full_path=1) != 1:
+        if not osC.check_if_file_exists(self.ace_log_file_path):
             self.ace_active_log = {self.ace_log_time_stamp: {"totalRuns": 1, "eventsLogged": []}}
             fC.dump_json_to_file(self.ace_log_file_path, self.ace_active_log)
             self.log_run_id = 1
@@ -216,7 +216,7 @@ class AceJobScheduler(AceLogging):
     def _get_job_status_json(self, job_dir):
         osC.check_create_dir_structure(job_dir, full_path=True)
         job_status_file = osC.append_to_dir(job_dir, self.ace_job_scheduler_fn)
-        if osC.check_if_file_exists(job_status_file, full_path=True) != 1:
+        if not osC.check_if_file_exists(job_status_file):
             self._create_new_job_status_file_for_job(job_dir)
         return fC.load_json_from_file(job_status_file)
 
@@ -241,14 +241,14 @@ class AceJobScheduler(AceLogging):
 
         requirement = requirement.lower()
         job_status = self._get_job_status_json(job_dir)
-        time_components = tC.extract_date_time_components()
+        cur_ts = tC.create_timestamp(output_format="%Y%m%d%H%M%S")
+        time_components = tC.extract_date_time_components(cur_ts, input_format="%Y%m%d%H%M%S")
         {'year': 2024, 'month': 12, 'day': 22, 'hour': 15, 'minute': 30, 'second': 45}
         month = time_components['month']
         day = time_components['day']
         hour = time_components['hour']
         minute = time_components['minute']
         second = time_components['second']
-        cur_ts = tC.create_timestamp(output_format="%Y%m%d%H%M%S")
 
         # Must be greater than or equal to after hour to need a run. Need to check this first.
         if hour < after_hour:
@@ -377,7 +377,8 @@ class AceJobScheduler(AceLogging):
 
     def _write_job_status(self, job_dir, success_bool):
         job_status_file_path = osC.append_to_dir(job_dir, "jobStatus.json")
-        time_components = tC.extract_date_time_components()
+        cur_ts = tC.create_timestamp(output_format="%Y%m%d%H%M%S")
+        time_components = tC.extract_date_time_components(cur_ts, input_format="%Y%m%d%H%M%S")
         month = time_components['month']
         day = time_components['day']
         hour = time_components['hour']
