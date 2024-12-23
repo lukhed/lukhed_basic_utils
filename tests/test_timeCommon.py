@@ -3,7 +3,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 
 
-from aceCommon.timeCommon import create_timestamp, get_date_tomorrow, get_date_yesterday
+from lukhed_basic_utils.timeCommon import create_timestamp, get_date_tomorrow, get_date_yesterday
 
 def test_create_time_stamp():
     print(create_timestamp())

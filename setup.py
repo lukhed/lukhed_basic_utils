@@ -1,14 +1,14 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="acecommon",
-    version="0.1.1",
-    description="A collection of common utility functions",
+    name="lukhed_basic_utils",
+    version="0.2.0",
+    description="A collection of basic utility functions",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
     author="lukhed",
     author_email="lukhed.mail@gmail.com",
-    url="https://github.com/lukhed/aceCommon",
+    url="https://github.com/lukhed/lukhed_basic_utils",
     packages=find_packages(),
     python_requires=">=3.6",
     classifiers=[
