@@ -3,7 +3,7 @@ import os
 import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
-from aceCommon.osCommon import create_file_path_string, append_to_dir, create_root_path_starting_from_drive
+from lukhed_basic_utils.osCommon import create_file_path_string, append_to_dir, create_root_path_starting_from_drive
 
 def test_create_file_path_string():
     print("Test 1: Base path provided as a list:")
