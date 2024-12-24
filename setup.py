@@ -10,7 +10,7 @@ setup(
     author_email="lukhed.mail@gmail.com",
     url="https://github.com/lukhed/lukhed_basic_utils",
     packages=find_packages(),
-    python_requires=">=3.6",
+    python_requires=">=3.9",
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
