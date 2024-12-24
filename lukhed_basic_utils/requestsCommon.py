@@ -101,6 +101,18 @@ def get_soup_from_page(response):
     """
     return bS(response.content, 'html.parser')
 
+def get_soup_from_html_content(html_content):
+    """
+    Convert raw HTML content into a BeautifulSoup object.
+
+    Parameters:
+        html_content (str): A string containing valid HTML markup.
+
+    Returns:
+        BeautifulSoup: A BeautifulSoup object parsed from the given HTML content.
+    """
+    return bS(html_content, 'html.parser')
+
 def download_image(image_url, file_path):
     """
     Download an image from a URL and save it to a specified file path.
