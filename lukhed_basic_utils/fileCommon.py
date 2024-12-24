@@ -361,20 +361,24 @@ def return_column_in_csv_as_list(f_path, col_index, header='no'):
 
 def write_content_to_file(f_name, content):
     """
-    Writes binary content to a file.
+    Writes string (text) content to a file using UTF-8 encoding.
 
     Parameters:
         f_name (str): The path to the file to write to.
-        content (bytes): The binary content to write.
+        content (str): The text content to write.
 
     Returns:
         None
 
+    Note:
+        - This function overwrites any existing file at the given path.
+        - If the file does not exist, it will be created.
+
     Example:
-        >>> content = b"Binary data here"
-        >>> write_content_to_file("output.bin", content)
+        >>> text_data = "Some text data here"
+        >>> write_content_to_file("output.txt", text_data)
     """
-    with open(f_name, 'wb') as f:
+    with open(f_name, 'w', encoding='utf-8') as f:
         f.write(content)
 
 
@@ -414,3 +418,18 @@ def create_blank_file(f_path):
     """
     with open(f_path, 'w') as fp:
         pass
+
+def read_file_content(file_path):
+    """
+    Read the contents of a text file and return them as a string.
+
+    Parameters:
+        file_path (str): The path to the file that should be read.
+
+    Returns:
+        str: The entire content of the file as a UTF-8 encoded string.
+    """
+    with open(file_path, 'r', encoding='utf-8') as file:
+        file_content = file.read()
+
+    return file_content
