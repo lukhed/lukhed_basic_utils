@@ -414,3 +414,18 @@ def create_blank_file(f_path):
     """
     with open(f_path, 'w') as fp:
         pass
+
+def read_file_content(file_path):
+    """
+    Read the contents of a text file and return them as a string.
+
+    Parameters:
+        file_path (str): The path to the file that should be read.
+
+    Returns:
+        str: The entire content of the file as a UTF-8 encoded string.
+    """
+    with open(file_path, 'r', encoding='utf-8') as file:
+        file_content = file.read()
+
+    return file_content
