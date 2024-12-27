@@ -21,6 +21,7 @@ setup(
         "requests>=2.32.3",
         "beautifulsoup4>=4.12.3",
         "fake-useragent>=2.0.3",
-        "tzdata>=2023.3"
+        "tzdata>=2023.3",
+        "PyGithub>= 2.5.0"
     ],
 )
