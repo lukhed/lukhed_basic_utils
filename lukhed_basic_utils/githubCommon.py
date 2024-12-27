@@ -16,8 +16,8 @@ Example Repo: grindsports
 
 """
 
-class GitCommon:
-    def __init__(self, project='grindsunday', repo_name='grindsports'):
+class GithubHelper:
+    def __init__(self, project='your_project_name', repo_name='your_repo_name'):
         """
         :param project:         str(), a github account setup, currently only supporting grindsunday.
                                 https://github.com/grindSunday
@@ -30,21 +30,17 @@ class GitCommon:
         cC.check_create_lukhed_config_path()
         self._resource_dir = cC.get_lukhed_config_path()
         self._github_config_file = osC.append_to_dir(self._resource_dir, 'githubConfig.json')
-        self._github_config = None
-        self._check_setup()
-        
-        self.project= project.lower()
-
-        # Authenticate with GitHub
-        self._gh_object = None                      # type: Optional[Github]
-        self._authenticate()
+        self._github_config = []
+        self.project = None
+        self._gh_object = None                                  # type: Optional[Github]
+        self._check_setup(project)
 
         # set the repository
-        self.repo_name = repo_name.lower()
-        self.repo = None                            # type: Optional[Repository]
-        self._set_repo()
+        # self.repo_name = repo_name.lower()
+        # self.repo = None                            # type: Optional[Repository]
+        # self._set_repo()
 
-    def _check_setup(self):
+    def _check_setup(self, project):
         need_setup = True
         if osC.check_if_file_exists(self._github_config_file):
             # Check for an active github configuration
@@ -52,18 +48,40 @@ class GitCommon:
             if not self._github_config:
                 need_setup = True
             else:
+                # check if project exists
+                self._activate_project(project)
                 need_setup = False
         else:
-            github_config = []
-            fC.dump_json_to_file(self._github_config_file, github_config)
+            # write default config to file
+            fC.dump_json_to_file(self._github_config_file, self._github_config)
             need_setup = True
 
         if need_setup:
             self._prompt_for_setup()
 
+    def _activate_project(self, project):
+        projects = [x['project'] for x in self._github_config]
         
+        if project in projects:
+            # Get the index of the item
+            index = projects.index(project)
+            token = self._github_config[index]['token']
+            if self._authenticate(token):
+                print(f"Project {project} was activated")
+                self.active_project = project
+            else:
+                print("ERROR: Error while trying to authenticate.")
+        else:
+            i = input((f'ERROR: There is no project "{project}" not found in the list. Would you like to go thru setup '
+                   'to add a new Github scope for this project name? (y/n): '))
+            if i == 'y':
+                self._guided_setup()
+            else:
+                print("Ok, exiting...")
+                quit()
+    
     def _prompt_for_setup(self):
-        i = input("*** You do not have a valid config file to utilize github. Do you want to go thru easy setup? (y/n):")
+        i = input("1. You do not have a valid config file to utilize github. Do you want to go thru easy setup? (y/n):")
         if i == 'y':
             self._guided_setup()
         elif i == 'n':
@@ -74,9 +92,32 @@ class GitCommon:
             quit()
 
     def _guided_setup(self):
-        print("\nStarting setup. Your github information will only be stored locally. You can see the config file created " \
-              "as a result of this setup in /lukhedConfig/githubConfig.json")
-        quit()
+        input(("\n2. Starting setup\n"
+               "The github information you provide in this setup will be stored locally only. "
+               "After setup, you can see the config file in your directory at /lukhedConfig/githubConfig.json."
+               "\nPress any key to continue"))
+        
+        token = input("\n3. Login to your Github account and go to https://github.com/settings/tokens. Generate a new "
+                      "token and ensure to give it scopes that allow reading and writing to repos. "
+                      "Copy the token, paste it below, then press enter:\n")
+        token = token.replace(" ", "")
+        project = input(("\n4. Provide a project name (this is needed for using the class) and press enter. "
+                         "Note: projects are case sensitive: "))
+        account_to_add = {"project": project, "token": token}
+        self._github_config.append(account_to_add)
+        self._update_github_config_file()
+        self._activate_project(project)
+
+    def _update_github_config_file(self):
+        fC.dump_json_to_file(self._github_config_file, self._github_config)
+        
+    def get_list_of_repo_names(self, print_names=False):
+        repos = []
+        for repo in self._gh_object.get_user().get_repos():
+            repos.append(repo.name)
+            if print_names:
+                print(repo.name)
+    
     def change_project(self, project, repo_name):
         self.project = project.lower()
         self._authenticate()
@@ -168,11 +209,9 @@ class GitCommon:
         else:
             return True
 
-    def _authenticate(self):
-        token_path = osC.append_to_dir(self._resource_dir, "githubProjects.json")
-        projects = fC.load_json_from_file(token_path)
-        t = projects[self.project]
-        self._gh_object = Github(t)
+    def _authenticate(self, token):
+        self._gh_object = Github(token)
+        return True
 
     def _set_repo(self):
         self.repo = self._gh_object.get_repo(self.project + "/" + self.repo_name)
@@ -320,23 +359,7 @@ def retrieve_token():
     return t
 
 
-def test_functions():
-    G = GitCommon()
-    stop = 1
-    # test = G.get_file_paths_in_repository('machineLearning')
-    grind_sports_readme = G.create_update_file(['poop.json'], [1, 2, 3 ,4])
-    # G.change_repo('machineLearning')
-    # machine_learning_readme = G.retrieve_file_content(['README.md'])
-    # j = G.retrieve_json_from_file('stocks', ['td_token_path.json'])
-    stop = 1
-    t = get_file_paths_in_repository("grindsunday", "grindSports", repo_dir_list="teamConversion")
-    n = create_new_file_in_repository("grindsunday", "grindsports", "schedules/test_schedule.json", {"test": "json"})
-    c = retrieve_decoded_content_from_file("grindsunday", "grindsports", "schedules/README.txt")
-    update_file_in_repository("grindSunday", "stocks", "td_token_path.json", {"creation_timestamp": None, "token": {}})
-    c = retrieve_json_content_from_file("grindSunday", "stocks", "td_token_path.json")
-
 
 if __name__ == '__main__':
-    # print(get_file_paths_in_repository("grindsunday", "grindSports", repo_dir_list="teamConversion"))
-    test_functions()
+    stop = 1
 
