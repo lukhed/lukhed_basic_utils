@@ -125,9 +125,9 @@ class GithubHelper:
     ###################
     def _parse_repo_dir_list_input(self, repo_dir_list):
         if repo_dir_list is None:
-            repo_dir_list = ""
+            repo_path = ""
         elif type(repo_dir_list) is str:
-            repo_dir_list = repo_dir_list
+            repo_path = repo_dir_list
         else:
             repo_path = "/".join(repo_dir_list)
 
@@ -226,14 +226,10 @@ class GithubHelper:
         return status
 
     def create_update_file(self, path_as_list_or_str, content):
-        repo_path = self._parse_repo_dir_list_input(path_as_list_or_str)
-        new_content = self._parse_new_file_content(repo_path, content)
-
         if self.file_exists(path_as_list_or_str):
-            status = self.update_file(path_as_list_or_str, new_content)
-
+            status = self.update_file(path_as_list_or_str, content)
         else:
-            status = self.create_file(path_as_list_or_str, new_content)
+            status = self.create_file(path_as_list_or_str, content)
 
         return status
 
