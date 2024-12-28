@@ -31,6 +31,7 @@ class GithubHelper:
         self._resource_dir = cC.get_lukhed_config_path()
         self._github_config_file = osC.append_to_dir(self._resource_dir, 'githubConfig.json')
         self._github_config = []
+        self.user = None
         self.project = None
         self.repo = None                                        # type: Optional[Repository]
         self._gh_object = None                                  # type: Optional[Github]
@@ -72,6 +73,7 @@ class GithubHelper:
             if self._authenticate(token):
                 print(f"INFO: {project} project was activated")
                 self.active_project = project
+                self.user = self._gh_object.get_user().login
                 return True
             else:
                 print("ERROR: Error while trying to authenticate.")
@@ -127,15 +129,12 @@ class GithubHelper:
         elif type(repo_dir_list) is str:
             repo_dir_list = repo_dir_list
         else:
-            repo_dir_list = ""
-            for d in repo_dir_list:
-                repo_dir_list = repo_dir_list + "/" + d
+            repo_path = "/".join(repo_dir_list)
 
-        return repo_dir_list
+        return repo_path
     
     def _set_repo(self, repo_name):
-        user = self._gh_object.get_user().login
-        self.repo = self._gh_object.get_repo(user + "/" + repo_name)
+        self.repo = self._gh_object.get_repo(self.user + "/" + repo_name)
         print(f"INFO: {repo_name} repo was activated")
         return True
     
@@ -202,6 +201,7 @@ class GithubHelper:
 
     def create_file(self, content, path_as_list_or_str=None, commit_message="no message"):
         repo_path = self._parse_repo_dir_list_input(path_as_list_or_str)
+        content = self._parse_content_for_upload(content)
         status = self.repo.create_file(path=repo_path, message=commit_message, content=content)
         return status
 
@@ -249,9 +249,12 @@ class GithubHelper:
         self._gh_object = Github(token)
         return True
 
-    def _parse_new_file_content(self, repo_path, content):
-        if (".json" in repo_path and type(content) is dict) or type(content) is list:
+    def _parse_content_for_upload(self, content):
+        if type(content) is dict or type(content) is list:
             content = json.dumps(content)
+        else:
+            content = str(content)
+            
 
         return content
 
