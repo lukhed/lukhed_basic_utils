@@ -17,7 +17,7 @@ Example Repo: grindsports
 """
 
 class GithubHelper:
-    def __init__(self, project='your_project_name', repo_name='your_repo_name'):
+    def __init__(self, project='your_project_name', repo_name=None):
         """
         :param project:         str(), a github account setup, currently only supporting grindsunday.
                                 https://github.com/grindSunday
@@ -32,13 +32,12 @@ class GithubHelper:
         self._github_config_file = osC.append_to_dir(self._resource_dir, 'githubConfig.json')
         self._github_config = []
         self.project = None
+        self.repo = None                                        # type: Optional[Repository]
         self._gh_object = None                                  # type: Optional[Github]
         self._check_setup(project)
 
-        # set the repository
-        # self.repo_name = repo_name.lower()
-        # self.repo = None                            # type: Optional[Repository]
-        # self._set_repo()
+        if repo_name is not None:
+            self._set_repo(repo_name)
 
     def _check_setup(self, project):
         need_setup = True
@@ -67,10 +66,12 @@ class GithubHelper:
             index = projects.index(project)
             token = self._github_config[index]['token']
             if self._authenticate(token):
-                print(f"Project {project} was activated")
+                print(f"INFO: {project} project was activated")
                 self.active_project = project
+                return True
             else:
                 print("ERROR: Error while trying to authenticate.")
+                return False
         else:
             i = input((f'ERROR: There is no project "{project}" not found in the list. Would you like to go thru setup '
                    'to add a new Github scope for this project name? (y/n): '))
@@ -110,6 +111,18 @@ class GithubHelper:
 
     def _update_github_config_file(self):
         fC.dump_json_to_file(self._github_config_file, self._github_config)
+
+    def _parse_repo_dir_list_input(self, repo_dir_list):
+        if repo_dir_list is None:
+            repo_dir_list = ""
+        elif type(repo_dir_list) is str:
+            repo_dir_list = repo_dir_list
+        else:
+            repo_dir_list = ""
+            for d in repo_dir_list:
+                repo_dir_list = repo_dir_list + "/" + d
+
+        return repo_dir_list
         
     def get_list_of_repo_names(self, print_names=False):
         repos = []
@@ -118,18 +131,16 @@ class GithubHelper:
             if print_names:
                 print(repo.name)
     
-    def change_project(self, project, repo_name):
-        self.project = project.lower()
-        self._authenticate()
+    def change_project(self, project, repo_name=None):
+        activated = self._activate_project(project)
 
-        self.repo_name = repo_name.lower()
-        self._set_repo()
+        if activated and repo_name is not None:
+            self._set_repo(repo_name)
 
     def change_repo(self, repo_name):
-        self.repo_name = repo_name.lower()
-        self._set_repo()
+        self._set_repo(repo_name)
 
-    def get_file_paths_in_path(self, repo_dir_list=None):
+    def get_files_in_path(self, repo_dir_list=None):
         """
         Gets a list of file paths in a repo given the parameters.
 
@@ -149,8 +160,8 @@ class GithubHelper:
 
         return [x.path for x in contents]
 
-    def retrieve_file_content(self, repo_dir_list, decode=True):
-        fp = self._build_repo_path(repo_dir_list)
+    def retrieve_file_content(self, repo_dir_list=None, decode=True):
+        fp = self._parse_repo_dir_list_input(repo_dir_list)
 
         try:
             contents = self._get_repo_contents(fp)
@@ -169,13 +180,13 @@ class GithubHelper:
         else:
             return contents
 
-    def create_file(self, repo_dir_list, content):
-        repo_path = self._build_repo_path(repo_dir_list)
-        status = self.repo.create_file(path=repo_path, message="no message", content=content)
+    def create_file(self, content, repo_dir_list=None, commit_message="no message"):
+        repo_path = self._parse_repo_dir_list_input(repo_dir_list)
+        status = self.repo.create_file(path=repo_path, message=commit_message, content=content)
         return status
 
-    def delete_file(self, repo_dir_list, commit_message="Delete file"):
-        repo_path = self._build_repo_path(repo_dir_list)
+    def delete_file(self, repo_dir_list=None, commit_message="Delete file"):
+        repo_path = self._parse_repo_dir_list_input(repo_dir_list)
         try:
             # Get the file from the repository
             file = self.repo.get_contents(repo_path)
@@ -186,7 +197,7 @@ class GithubHelper:
         except Exception as e:
             return str(e)
 
-    def update_file(self, repo_dir_list, new_content):
+    def update_file(self, new_content, repo_dir_list=None):
         existing_contents = self.retrieve_file_content(repo_dir_list, decode=False)
         status = self.repo.update_file(existing_contents.path, "", new_content, existing_contents.sha)
         return status
@@ -202,7 +213,8 @@ class GithubHelper:
 
         return status
 
-    def file_exists(self, repo_dir_list):
+    def file_exists(self, repo_dir_list=None):
+        self._parse_repo_dir_list_input(repo_dir_list)
         res = self.retrieve_file_content(repo_dir_list, decode=False)
         if res is None:
             return False
@@ -213,8 +225,11 @@ class GithubHelper:
         self._gh_object = Github(token)
         return True
 
-    def _set_repo(self):
-        self.repo = self._gh_object.get_repo(self.project + "/" + self.repo_name)
+    def _set_repo(self, repo_name):
+        user = self._gh_object.get_user().login
+        self.repo = self._gh_object.get_repo(user + "/" + repo_name)
+        print(f"INFO: {repo_name} repo was activated")
+        return True
 
     def _parse_new_file_content(self, repo_dir_list, content):
         repo_path = self._build_repo_path(repo_dir_list)
@@ -228,17 +243,8 @@ class GithubHelper:
         return "/".join(list_path_from_root)
 
     def _get_repo_contents(self, repo_dir_list):
-        if repo_dir_list is None:
-            contents = self.repo.get_contents("")
-        elif type(repo_dir_list) is str:
-            contents = self.repo.get_contents(repo_dir_list)
-        else:
-            content_path = ""
-            for d in repo_dir_list:
-                content_path = content_path + "/" + d
-
-            contents = self.repo.get_contents(content_path)
-
+        content_path = self._parse_repo_dir_list_input(repo_dir_list)
+        contents = self.repo.get_contents(content_path)
         return contents
 
 
