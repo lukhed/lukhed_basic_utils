@@ -39,6 +39,10 @@ class GithubHelper:
         if repo_name is not None:
             self._set_repo(repo_name)
 
+    
+    ###################
+    # Setup/COnfig
+    ###################
     def _check_setup(self, project):
         need_setup = True
         if osC.check_if_file_exists(self._github_config_file):
@@ -112,6 +116,11 @@ class GithubHelper:
     def _update_github_config_file(self):
         fC.dump_json_to_file(self._github_config_file, self._github_config)
 
+        
+    ###################
+    # Repo Helpers
+    # These functions work with the active Repo
+    ###################
     def _parse_repo_dir_list_input(self, repo_dir_list):
         if repo_dir_list is None:
             repo_dir_list = ""
@@ -123,7 +132,17 @@ class GithubHelper:
                 repo_dir_list = repo_dir_list + "/" + d
 
         return repo_dir_list
-        
+    
+    def _set_repo(self, repo_name):
+        user = self._gh_object.get_user().login
+        self.repo = self._gh_object.get_repo(user + "/" + repo_name)
+        print(f"INFO: {repo_name} repo was activated")
+        return True
+    
+    def _get_repo_contents(self, repo_path):
+        contents = self.repo.get_contents(repo_path)
+        return contents
+    
     def get_list_of_repo_names(self, print_names=False):
         repos = []
         for repo in self._gh_object.get_user().get_repos():
@@ -131,16 +150,16 @@ class GithubHelper:
             if print_names:
                 print(repo.name)
     
+    def change_repo(self, repo_name):
+        self._set_repo(repo_name)
+     
     def change_project(self, project, repo_name=None):
         activated = self._activate_project(project)
 
         if activated and repo_name is not None:
             self._set_repo(repo_name)
 
-    def change_repo(self, repo_name):
-        self._set_repo(repo_name)
-
-    def get_files_in_path(self, repo_dir_list=None):
+    def get_files_in_repo_path(self, path_as_list_or_str=None):
         """
         Gets a list of file paths in a repo given the parameters.
 
@@ -156,15 +175,16 @@ class GithubHelper:
                                 in repo=grind sports ["teamConversion", "nfl"] will retrieve all files within the nfl
                                 directory which is in the top level directory of teamConversion.
         """
-        contents = self._get_repo_contents(repo_dir_list)
+        repo_path = self._parse_repo_dir_list_input(path_as_list_or_str)
+        contents = self._get_repo_contents(repo_path)
 
         return [x.path for x in contents]
 
-    def retrieve_file_content(self, repo_dir_list=None, decode=True):
-        fp = self._parse_repo_dir_list_input(repo_dir_list)
+    def retrieve_file_content(self, path_as_list_or_str, decode=True):
+        repo_path = self._parse_repo_dir_list_input(path_as_list_or_str)
 
         try:
-            contents = self._get_repo_contents(fp)
+            contents = self._get_repo_contents(repo_path)
         except UnknownObjectException as e:
             # file not found exception
             return None
@@ -172,7 +192,7 @@ class GithubHelper:
         if decode:
             decoded = contents.decoded_content
 
-            if '.json' in fp:
+            if '.json' in repo_path:
                 return json.loads(decoded)
             else:
                 return decoded
@@ -180,13 +200,13 @@ class GithubHelper:
         else:
             return contents
 
-    def create_file(self, content, repo_dir_list=None, commit_message="no message"):
-        repo_path = self._parse_repo_dir_list_input(repo_dir_list)
+    def create_file(self, content, path_as_list_or_str=None, commit_message="no message"):
+        repo_path = self._parse_repo_dir_list_input(path_as_list_or_str)
         status = self.repo.create_file(path=repo_path, message=commit_message, content=content)
         return status
 
-    def delete_file(self, repo_dir_list=None, commit_message="Delete file"):
-        repo_path = self._parse_repo_dir_list_input(repo_dir_list)
+    def delete_file(self, path_as_list_or_str=None, commit_message="Delete file"):
+        repo_path = self._parse_repo_dir_list_input(path_as_list_or_str)
         try:
             # Get the file from the repository
             file = self.repo.get_contents(repo_path)
@@ -197,19 +217,23 @@ class GithubHelper:
         except Exception as e:
             return str(e)
 
-    def update_file(self, new_content, repo_dir_list=None):
-        existing_contents = self.retrieve_file_content(repo_dir_list, decode=False)
-        status = self.repo.update_file(existing_contents.path, "", new_content, existing_contents.sha)
+    def update_file(self, new_content, path_as_list_or_str, message="Updated content"):
+        repo_path = self._parse_repo_dir_list_input(path_as_list_or_str)
+        new_content = self._parse_new_file_content(repo_path, new_content)
+        existing_contents = self.retrieve_file_content(path_as_list_or_str, decode=False)
+
+        status = self.repo.update_file(existing_contents.path, message=message, content=new_content, sha=existing_contents.sha)
         return status
 
-    def create_update_file(self, repo_dir_list, content):
-        new_content = self._parse_new_file_content(repo_dir_list, content)
+    def create_update_file(self, path_as_list_or_str, content):
+        repo_path = self._parse_repo_dir_list_input(path_as_list_or_str)
+        new_content = self._parse_new_file_content(repo_path, content)
 
-        if self.file_exists(repo_dir_list):
-            status = self.update_file(repo_dir_list, new_content)
+        if self.file_exists(path_as_list_or_str):
+            status = self.update_file(path_as_list_or_str, new_content)
 
         else:
-            status = self.create_file(repo_dir_list, new_content)
+            status = self.create_file(path_as_list_or_str, new_content)
 
         return status
 
@@ -225,14 +249,7 @@ class GithubHelper:
         self._gh_object = Github(token)
         return True
 
-    def _set_repo(self, repo_name):
-        user = self._gh_object.get_user().login
-        self.repo = self._gh_object.get_repo(user + "/" + repo_name)
-        print(f"INFO: {repo_name} repo was activated")
-        return True
-
-    def _parse_new_file_content(self, repo_dir_list, content):
-        repo_path = self._build_repo_path(repo_dir_list)
+    def _parse_new_file_content(self, repo_path, content):
         if (".json" in repo_path and type(content) is dict) or type(content) is list:
             content = json.dumps(content)
 
@@ -242,10 +259,7 @@ class GithubHelper:
     def _build_repo_path(list_path_from_root):
         return "/".join(list_path_from_root)
 
-    def _get_repo_contents(self, repo_dir_list):
-        content_path = self._parse_repo_dir_list_input(repo_dir_list)
-        contents = self.repo.get_contents(content_path)
-        return contents
+    
 
 
 def retrieve_decoded_content_from_file(project, repo, file_name, github_object=None):
