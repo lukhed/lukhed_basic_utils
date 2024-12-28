@@ -7,24 +7,37 @@ from github.GithubException import UnknownObjectException
 import json
 from typing import Optional
 
-"""
-https://github.com/grindSunday/
-https://pygithub.readthedocs.io/en/latest/examples.html
-
-Example Project: grindsunday
-Example Repo: grindsports
-
-"""
-
 class GithubHelper:
     def __init__(self, project='your_project_name', repo_name=None):
         """
-        :param project:         str(), a github account setup, currently only supporting grindsunday.
-                                https://github.com/grindSunday
+        A helper class for interacting with GitHub repositories, handling authentication, 
+        and various file operations within a repository.
 
-        :param repo_name:       str(), a repository available within the project. For example, in grindsunday:
-                                https://github.com/grindSunday?tab=repositories
-        """
+        Upon instantiation, the class checks for an existing GitHub configuration file
+        (`githubConfig.json`) in the lukhed config directory. If a valid configuration
+        does not exist, it guides you through creating one, storing the credentials locally.
+        Once configurted, the class can then authenticate with GitHub using a personal access token
+        associated with a specific project.
+
+        Parameters:
+            project (str, optional): Name of the project to activate. Defaults to
+                'your_project_name'. Project names are not case sensitive.
+            repo_name (str, optional): Name of the repository to activate immediately
+                after instantiation. Defaults to None.
+
+        Attributes:
+            _resource_dir (str): Path to the lukhed config directory.
+            _github_config_file (str): Full path to the `githubConfig.json` file containing
+                user tokens for various projects.
+            _github_config (list): Loaded GitHub configuration data (list of dictionaries),
+                each containing a "project" and "token" key.
+            user (str | None): Authenticated GitHub username, set upon successful authentication.
+            project (str | None): Currently active project name (lowercase).
+            repo (github.Repository.Repository | None): GitHub repository object for the
+                active repository, if any.
+            _gh_object (github.Github | None): The authenticated GitHub instance used to
+                make API calls.
+    """
         
         # Check setup upon instantiation
         cC.check_create_lukhed_config_path()
@@ -64,7 +77,8 @@ class GithubHelper:
             self._prompt_for_setup()
 
     def _activate_project(self, project):
-        projects = [x['project'] for x in self._github_config]
+        projects = [x['project'].lower() for x in self._github_config]
+        project = project.lower()
         
         if project in projects:
             # Get the index of the item
@@ -79,8 +93,9 @@ class GithubHelper:
                 print("ERROR: Error while trying to authenticate.")
                 return False
         else:
-            i = input((f'ERROR: There is no project "{project}" not found in the list. Would you like to go thru setup '
-                   'to add a new Github scope for this project name? (y/n): '))
+            
+            i = input((f'ERROR: There is no project "{project}" in the config file. Would you like to go thru setup '
+                   'to add a new Github key for this project name? (y/n): '))
             if i == 'y':
                 self._guided_setup()
             else:
@@ -100,7 +115,7 @@ class GithubHelper:
 
     def _guided_setup(self):
         input(("\n2. Starting setup\n"
-               "The github information you provide in this setup will be stored locally only. "
+               "The github key you provide in this setup will be stored locally only. "
                "After setup, you can see the config file in your directory at /lukhedConfig/githubConfig.json."
                "\nPress any key to continue"))
         
@@ -109,8 +124,8 @@ class GithubHelper:
                       "Copy the token, paste it below, then press enter:\n")
         token = token.replace(" ", "")
         project = input(("\n4. Provide a project name (this is needed for using the class) and press enter. "
-                         "Note: projects are case sensitive: "))
-        account_to_add = {"project": project, "token": token}
+                         "Note: projects are not case sensitive: "))
+        account_to_add = {"project": project.lower(), "token": token}
         self._github_config.append(account_to_add)
         self._update_github_config_file()
         self._activate_project(project)
@@ -118,10 +133,13 @@ class GithubHelper:
     def _update_github_config_file(self):
         fC.dump_json_to_file(self._github_config_file, self._github_config)
 
-        
+    def _authenticate(self, token):
+        self._gh_object = Github(token)
+        return True
+
+
     ###################
     # Repo Helpers
-    # These functions work with the active Repo
     ###################
     def _parse_repo_dir_list_input(self, repo_dir_list):
         if repo_dir_list is None:
@@ -133,16 +151,38 @@ class GithubHelper:
 
         return repo_path
     
-    def _set_repo(self, repo_name):
-        self.repo = self._gh_object.get_repo(self.user + "/" + repo_name)
-        print(f"INFO: {repo_name} repo was activated")
-        return True
+    def _parse_content_for_upload(self, content):
+        if type(content) is dict or type(content) is list:
+            content = json.dumps(content)
+        else:
+            content = str(content)
+            
+        return content
     
+    def _set_repo(self, repo_name):
+        try:
+            self.repo = self._gh_object.get_repo(self.user + "/" + repo_name)
+            print(f"INFO: {repo_name} repo was activated")
+            return True
+        except Exception as e:
+            print((f"ERROR: Error trying to set the repo to {repo_name}. Does this repo exist on your account? "
+                   f"Use the method 'get_list_of_repo_names' to see the repos in your active project."
+                   f"See the full error below:\n{e}"))
+            
     def _get_repo_contents(self, repo_path):
         contents = self.repo.get_contents(repo_path)
         return contents
     
     def get_list_of_repo_names(self, print_names=False):
+        """
+        Returns a list of repo names available in the active project. Optionally prints the list to console.
+
+        Parameters:
+            print_names (bool, optional): If True, prints the list of available repos to the console. Defaults to False.
+        
+        Returns:
+            list: A list of repo names associated with the active account.
+        """
         repos = []
         for repo in self._gh_object.get_user().get_repos():
             repos.append(repo.name)
@@ -150,9 +190,22 @@ class GithubHelper:
                 print(repo.name)
     
     def change_repo(self, repo_name):
+        """
+        Changes the active repository.
+
+        Parameters:
+            repo_name (str): Name of the repository to switch to.
+        """ 
         self._set_repo(repo_name)
      
     def change_project(self, project, repo_name=None):
+        """
+        Changes the active project. Optionally switches the repository if repo_name is provided.
+
+        Parameters:
+            project (str): Name of the project to activate.
+            repo_name (str, optional): Name of the repository to switch to. Defaults to None.
+        """
         activated = self._activate_project(project)
 
         if activated and repo_name is not None:
@@ -160,19 +213,14 @@ class GithubHelper:
 
     def get_files_in_repo_path(self, path_as_list_or_str=None):
         """
-        Gets a list of file paths in a repo given the parameters.
+        Retrieves a list of file paths in the specified repository path.
 
-        :param repo_dir_list:   None, str(), or list()
+        Parameters:
+            path_as_list_or_str (list | str, optional): Path to a directory in the repository.
+            Can be provided as a list of directory segments or a single string. Defaults to None.
 
-                                None -> Output will be all files and all directories in the top level of the repo
-
-                                str() -> String represents a top level folder in the repo. Output will be all files and
-                                all directories within that top level folder
-
-                                list() -> List path to the desired directory. Output will be all files and all directories
-                                within the final directory in the path derived from the list. For example:
-                                in repo=grind sports ["teamConversion", "nfl"] will retrieve all files within the nfl
-                                directory which is in the top level directory of teamConversion.
+        Returns:
+            list: A list of file paths (str) found at the specified location in the repository.
         """
         repo_path = self._parse_repo_dir_list_input(path_as_list_or_str)
         contents = self._get_repo_contents(repo_path)
@@ -180,6 +228,29 @@ class GithubHelper:
         return [x.path for x in contents]
 
     def retrieve_file_content(self, path_as_list_or_str, decode=True):
+        """
+        Retrieves the content of a file in the repository. Optionally decodes the content
+        and returns either raw text/binary or JSON (if the file is .json).
+
+        Parameters:
+            path_as_list_or_str (list | str): Path to the file in the repository, either
+            as a list of directory segments or a single string.
+
+            decode (bool, optional): If True, decodes the file content. If the file is JSON,
+                returns a Python dictionary; otherwise returns the raw decoded data. If False,
+                returns a ContentFile object. Defaults to True.
+
+        Returns:
+            dict | str | None: Decoded JSON object if .json file and decode=True, string content
+            for other file types if decode=True, ContentFile object if decode=False, or None
+            if the file is not found.
+
+        Example:
+            >>> # Retrieve and decode content of a JSON file
+            >>> json_data = self.retrieve_file_content(["data", "example.json"], decode=True)
+            >>> print(json_data)
+            {"key": "value", "numbers": [1, 2, 3]}
+        """
         repo_path = self._parse_repo_dir_list_input(path_as_list_or_str)
 
         try:
@@ -190,7 +261,6 @@ class GithubHelper:
 
         if decode:
             decoded = contents.decoded_content
-
             if '.json' in repo_path:
                 return json.loads(decoded)
             else:
@@ -200,12 +270,42 @@ class GithubHelper:
             return contents
 
     def create_file(self, content, path_as_list_or_str=None, commit_message="no message"):
+        """
+        Creates a new file in the repository with the specified content.
+
+        Parameters:
+            content (str | dict): The content to upload. If dict, it will be converted to JSON.
+            path_as_list_or_str (list | str, optional): Path to the file in the repository,
+            either as a list of directory segments or a single string. Defaults to None.
+            commit_message (str, optional): Commit message for the new file. Defaults to "no message".
+
+        Returns:
+            dict: A status dictionary returned by the GitHub API after file creation.
+
+        Example:
+            >>> # Create a file with some text content
+            >>> status = self.create_file("Hello, world!", ["docs", "hello.txt"], "Add hello.txt")
+            >>> print(status["commit"].sha)
+            6f0e918c...
+        """
         repo_path = self._parse_repo_dir_list_input(path_as_list_or_str)
         content = self._parse_content_for_upload(content)
         status = self.repo.create_file(path=repo_path, message=commit_message, content=content)
         return status
 
     def delete_file(self, path_as_list_or_str=None, commit_message="Delete file"):
+        """
+        Deletes a file from the repository.
+
+        Parameters:
+            path_as_list_or_str (list | str, optional): Path to the file in the repository,
+            either as a list of directory segments or a single string. Defaults to None.
+            commit_message (str, optional): Commit message for the deletion. Defaults to "Delete file".
+
+        Returns:
+            dict | str: A status dictionary returned by the GitHub API after file deletion,
+            or an error message if deletion fails.
+        """
         repo_path = self._parse_repo_dir_list_input(path_as_list_or_str)
         try:
             # Get the file from the repository
@@ -215,17 +315,55 @@ class GithubHelper:
             status = self.repo.delete_file(path=repo_path, message=commit_message, sha=file.sha)
             return status
         except Exception as e:
-            return str(e)
+            return e
 
     def update_file(self, new_content, path_as_list_or_str, message="Updated content"):
-        repo_path = self._parse_repo_dir_list_input(path_as_list_or_str)
-        new_content = self._parse_new_file_content(repo_path, new_content)
+        """
+        Updates the content of an existing file in the repository.
+
+        Parameters:
+            new_content (str | dict | list): The new content to upload. If dict or list, it will be converted to json.
+            path_as_list_or_str (list | str): Path to the existing file in the repository,
+            either as a list of directory segments or a single string.
+            message (str, optional): Commit message for the update. Defaults to "Updated content".
+
+        Returns:
+            dict: A status dictionary returned by the GitHub API after file update.
+
+        Example:
+            >>> # Update an existing text file
+            >>> update_status = self.update_file("New content goes here",
+            ...                                  ["docs", "hello.txt"],
+            ...                                  "Update hello.txt")
+            >>> print(update_status["commit"].sha)
+            83b2fa1c...
+        """
+        new_content = self._parse_content_for_upload(new_content)
         existing_contents = self.retrieve_file_content(path_as_list_or_str, decode=False)
 
-        status = self.repo.update_file(existing_contents.path, message=message, content=new_content, sha=existing_contents.sha)
+        status = self.repo.update_file(existing_contents.path, message=message, content=new_content, 
+                                       sha=existing_contents.sha)
         return status
 
     def create_update_file(self, path_as_list_or_str, content):
+        """
+        Creates a new file or updates an existing file with the given content.
+
+        Parameters:
+            path_as_list_or_str (list | str): Path to the file in the repository, either as a list
+            of directory segments or a single string.
+            content (str | dict): The content to upload. If dict, it may be converted to JSON
+            depending on file type.
+
+        Returns:
+            dict: A status dictionary returned by the GitHub API after file creation or update.
+
+        Example:
+            >>> # Create or update a file named "config.json"
+            >>> status = self.create_update_file(["configs", "config.json"], {"env": "dev", "debug": True})
+            >>> print(status["commit"].message)
+            Updated content
+        """
         if self.file_exists(path_as_list_or_str):
             status = self.update_file(path_as_list_or_str, content)
         else:
@@ -234,151 +372,20 @@ class GithubHelper:
         return status
 
     def file_exists(self, repo_dir_list=None):
+        """
+        Checks if a file exists in the repository.
+
+        Parameters:
+            repo_dir_list (list | str, optional): Path to the file in the repository,
+                either as a list of directory segments or a single string. Defaults to None.
+
+        Returns:
+            bool: True if the file exists, False otherwise.
+        """
         self._parse_repo_dir_list_input(repo_dir_list)
         res = self.retrieve_file_content(repo_dir_list, decode=False)
         if res is None:
             return False
         else:
             return True
-
-    def _authenticate(self, token):
-        self._gh_object = Github(token)
-        return True
-
-    def _parse_content_for_upload(self, content):
-        if type(content) is dict or type(content) is list:
-            content = json.dumps(content)
-        else:
-            content = str(content)
-            
-
-        return content
-
-    @staticmethod
-    def _build_repo_path(list_path_from_root):
-        return "/".join(list_path_from_root)
-
-    
-
-
-def retrieve_decoded_content_from_file(project, repo, file_name, github_object=None):
-    g = _parse_github_object(github_object)
-    repo_name = project + "/" + repo
-    g_repo = g.get_repo(repo_name)
-
-    return g_repo.get_contents(file_name).decoded_content
-
-
-def retrieve_json_content_from_file(project, repo, file_name, github_object=None):
-    g = _parse_github_object(github_object)
-    c = retrieve_decoded_content_from_file(project, repo, file_name, github_object=g)
-
-    return json.loads(c)
-
-
-def return_github_instance():
-    return _create_github_instances()
-
-
-def update_file_in_repository(project, repo, file_name, new_content, github_object=None):
-    g = _parse_github_object(github_object)
-    repo = g.get_repo(project + "/" + repo)
-    contents = repo.get_contents(file_name)
-    if type(new_content) == dict or type(new_content) is list:
-        repo.update_file(contents.path, "", json.dumps(new_content), contents.sha)
-    else:
-        repo.update_file(contents.path, "", str(new_content), contents.sha)
-
-
-def create_new_file_in_repository(project, repo, file_name, file_content, github_object=None):
-    """
-    Creates new file. Cannot overwrite
-
-    :param project:         str(), github root, for example, grindsunday
-
-    :param repo:            str(), repo name, see repo names for grindsunday here:
-                            https://github.com/grindSunday?tab=repositories
-
-    :param file_name:       str(), location from repo. For example "test.txt" or "test/test.txt"
-
-    :param file_content:    str() or dict(), file can write text files or json files.
-
-    :param github_object:   pass the object if you already created one
-    """
-
-    g = _parse_github_object(github_object)
-    repo = g.get_repo(project + "/" + repo)
-
-    if ".json" in file_name and type(file_content) is dict or type(file_content) is list:
-        file_content = json.dumps(file_content)
-
-    status = repo.create_file(path=file_name, message="no message", content=file_content)
-    return status
-
-
-def get_file_paths_in_repository(project, repo, repo_dir_list=None, github_object=None):
-    """
-    Gets a list of file paths in a repo given the parameters. The output can then be used to retrieve file content
-    of the desired files in the repo.
-
-    :param project:         str(), gitHub root, for example, grindsunday
-
-    :param repo:            str(), repo name, see repo names for grindsunday here:
-                            https://github.com/grindSunday?tab=repositories
-                            for example, grindSports
-
-    :param repo_dir_list:   None, str(), or list()
-
-                            None -> Output will be all files and all directories in the top level of the repo
-
-                            str() -> String represents the top level folder in the repo. Output will be all files and
-                            all directories within that top level folder
-
-                            list() -> List path to the desired directory. Output will be all files and all directories
-                            within the final directory in the path derived from the list. For example:
-                            in repo=grind sports ["teamConversion", "nfl"] will retrieve all files within the nfl
-                            directory which is in the top level directory of teamConversion.
-
-    :param github_object:   pass the object if you already created one
-    """
-    g = _parse_github_object(github_object)
-    repo = g.get_repo(project + "/" + repo)
-
-
-    if repo_dir_list is None:
-        contents = repo.get_contents("")
-    elif type(repo_dir_list) is str:
-        contents = repo.get_contents(repo_dir_list)
-    else:
-        content_path = ""
-        for d in repo_dir_list:
-            content_path = content_path + "/" + d
-
-        contents = repo.get_contents(content_path)
-
-    return [x.path for x in contents]
-
-
-def _create_github_instances():
-    t = retrieve_token()
-    g = Github(t)
-    return g
-
-
-def _parse_github_object(github_object_parameter):
-    if github_object_parameter is None:
-        return _create_github_instances()
-    else:
-        return github_object_parameter
-
-
-def retrieve_token():
-    t = fC.read_single_line_from_file(osC.create_file_path_string(["resources", "aceCommon", "githubToken.txt"]))
-
-    return t
-
-
-
-if __name__ == '__main__':
-    stop = 1
-
+        
