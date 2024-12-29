@@ -86,12 +86,13 @@ def return_immediate_child_dirs_given_dir(full_dir_path):
     """
     return [f.path for f in os.scandir(full_dir_path) if f.is_dir()]
     
-def return_files_in_dir_as_strings(dir_path):
+def return_files_in_dir_as_strings(dir_path, return_file_names_only=False):
     """
     Returns a list of file paths in a given directory.
 
     Parameters:
         dir_path (str): The directory path to retrieve files from.
+        return_file_names_only (bool): If true, get file names only instead of the full path string.
 
     Returns:
         list: A sorted list of file paths as strings. Additional sorting is applied only on Linux.
@@ -110,7 +111,10 @@ def return_files_in_dir_as_strings(dir_path):
     if "linux" in platform.system().lower():
         file_list.sort()
 
-    return file_list
+    if return_file_names_only:
+        return [extract_file_name_given_full_path(x) for x in file_list]
+    else:
+        return file_list
 
 def check_if_dir_exists(full_path):
     """
