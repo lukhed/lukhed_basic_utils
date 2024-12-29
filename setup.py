@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="lukhed_basic_utils",
-    version="0.4.0",
+    version="1.0.0",
     description="A collection of basic utility functions",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
@@ -21,6 +21,7 @@ setup(
         "requests>=2.32.3",
         "beautifulsoup4>=4.12.3",
         "fake-useragent>=2.0.3",
-        "tzdata>=2023.3"
+        "tzdata>=2023.3",
+        "PyGithub>= 2.5.0"
     ],
 )
