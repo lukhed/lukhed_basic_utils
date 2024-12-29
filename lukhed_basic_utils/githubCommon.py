@@ -141,6 +141,10 @@ class GithubHelper:
     ###################
     # Repo Helpers
     ###################
+    def _activate_repo(self, repo_name):
+        self.repo = self._gh_object.get_repo(self.user + "/" + repo_name)
+        print(f"INFO: {repo_name} repo was activated")
+        
     def _parse_repo_dir_list_input(self, repo_dir_list):
         if repo_dir_list is None:
             repo_path = ""
@@ -161,17 +165,47 @@ class GithubHelper:
     
     def _set_repo(self, repo_name):
         try:
-            self.repo = self._gh_object.get_repo(self.user + "/" + repo_name)
-            print(f"INFO: {repo_name} repo was activated")
+            self._activate_repo(repo_name)
             return True
         except Exception as e:
-            print((f"ERROR: Error trying to set the repo to {repo_name}. Does this repo exist on your account? "
-                   f"Use the method 'get_list_of_repo_names' to see the repos in your active project."
+            print((f"ERROR: Error trying to set repo to {repo_name}. Maybe the repo does not exist in your account. "
                    f"See the full error below:\n{e}"))
+            create_repo = input(f"Do you want to create a private repo named {repo_name}? (y/n) ")
+            if create_repo == 'y':
+                if self.create_repo(repo_name, private=True):
+                    self._activate_repo(repo_name)
             
     def _get_repo_contents(self, repo_path):
         contents = self.repo.get_contents(repo_path)
         return contents
+    
+    def create_repo(self, repo_name, description="Repo created by lukhed-basic-utils", private=True):
+        """
+        Creates a new repository on GitHub.
+
+        Parameters:
+            repo_name (str): The name of the repository to create.
+            description (str, optional): A brief description of the repository.
+            private (bool, optional): Determines whether the repository should be private. 
+                                      Defaults to True (private repository).
+
+        Returns:
+            bool: True if the repository was created successfully, False otherwise.
+
+        Example:
+            >>> success = obj.create_repo("my-new-repo", description="A test repo", private=True)
+        """
+        try:
+            repo = self._gh_object.get_user().create_repo(
+                name=repo_name,
+                description=description,
+                private=private
+            )
+            print(f"Repository '{repo.name}' created successfully at {repo.html_url}")
+            return True
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            return False
     
     def get_list_of_repo_names(self, print_names=False):
         """
@@ -269,14 +303,14 @@ class GithubHelper:
         else:
             return contents
 
-    def create_file(self, content, path_as_list_or_str=None, commit_message="no message"):
+    def create_file(self, content, path_as_list_or_str, commit_message="no message"):
         """
         Creates a new file in the repository with the specified content.
 
         Parameters:
             content (str | dict): The content to upload. If dict, it will be converted to JSON.
-            path_as_list_or_str (list | str, optional): Path to the file in the repository,
-            either as a list of directory segments or a single string. Defaults to None.
+            path_as_list_or_str (list | str): Path to the file in the repository,
+            either as a list of directory segments or a single string.
             commit_message (str, optional): Commit message for the new file. Defaults to "no message".
 
         Returns:
@@ -293,13 +327,13 @@ class GithubHelper:
         status = self.repo.create_file(path=repo_path, message=commit_message, content=content)
         return status
 
-    def delete_file(self, path_as_list_or_str=None, commit_message="Delete file"):
+    def delete_file(self, path_as_list_or_str, commit_message="Delete file"):
         """
         Deletes a file from the repository.
 
         Parameters:
-            path_as_list_or_str (list | str, optional): Path to the file in the repository,
-            either as a list of directory segments or a single string. Defaults to None.
+            path_as_list_or_str (list | str): Path to the file in the repository,
+            either as a list of directory segments or a single string.
             commit_message (str, optional): Commit message for the deletion. Defaults to "Delete file".
 
         Returns:
@@ -371,13 +405,13 @@ class GithubHelper:
 
         return status
 
-    def file_exists(self, repo_dir_list=None):
+    def file_exists(self, repo_dir_list):
         """
         Checks if a file exists in the repository.
 
         Parameters:
-            repo_dir_list (list | str, optional): Path to the file in the repository,
-                either as a list of directory segments or a single string. Defaults to None.
+            repo_dir_list (list | str): Path to the file in the repository,
+                either as a list of directory segments or a single string.
 
         Returns:
             bool: True if the file exists, False otherwise.
@@ -388,4 +422,5 @@ class GithubHelper:
             return False
         else:
             return True
+
         
