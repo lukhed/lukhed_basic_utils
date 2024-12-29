@@ -1,6 +1,5 @@
 from lukhed_basic_utils import osCommon as osC
 from lukhed_basic_utils import fileCommon as fC
-from lukhed_basic_utils import commonCommon as cC
 from github import Github
 from github.Repository import Repository
 from github.GithubException import UnknownObjectException
@@ -8,7 +7,7 @@ import json
 from typing import Optional
 
 class GithubHelper:
-    def __init__(self, project='your_project_name', repo_name=None):
+    def __init__(self, project='your_project_name', repo_name=None, set_config_directory=None):
         """
         A helper class for interacting with GitHub repositories, handling authentication, 
         and various file operations within a repository.
@@ -24,6 +23,9 @@ class GithubHelper:
                 'your_project_name'. Project names are not case sensitive.
             repo_name (str, optional): Name of the repository to activate immediately
                 after instantiation. Defaults to None.
+            set_config_directory (str, optional): Full path to the directory that contains your GithubHelper config 
+                file (token file). Default is None and this class will create a directory in your working directory 
+                called 'lukhedConfig' to store the GithubHelper config file.
 
         Attributes:
             _resource_dir (str): Path to the lukhed config directory.
@@ -40,8 +42,15 @@ class GithubHelper:
     """
         
         # Check setup upon instantiation
-        cC.check_create_lukhed_config_path()
-        self._resource_dir = cC.get_lukhed_config_path()
+        if set_config_directory is None:
+            osC.check_create_dir_structure(['lukhedConfig'])
+            self._resource_dir = osC.create_file_path_string(['lukhedConfig'])
+        else:
+            self._resource_dir = set_config_directory
+            if not osC.check_if_dir_exists(self._resource_dir):
+                print(f"ERROR: The config directory '{set_config_directory}' does not exist. Exiting...")
+                quit()
+
         self._github_config_file = osC.append_to_dir(self._resource_dir, 'githubConfig.json')
         self._github_config = []
         self.user = None
@@ -55,7 +64,7 @@ class GithubHelper:
 
     
     ###################
-    # Setup/COnfig
+    # Setup/Config
     ###################
     def _check_setup(self, project):
         need_setup = True
@@ -77,9 +86,20 @@ class GithubHelper:
             self._prompt_for_setup()
 
     def _activate_project(self, project):
-        projects = [x['project'].lower() for x in self._github_config]
-        project = project.lower()
+        try:
+            projects = [x['project'].lower() for x in self._github_config]
+        except Exception as e:
+            input((f"ERROR: Error while trying to parse the config file. It may be corrupt."
+                   "You can delete the config directory and go through setup again. Press any button to quit."))
+            quit()
         
+        try:
+            project = project.lower()
+        except Exception as e:
+            input((f"ERROR: Error while trying to parse project name '{project}'. Try another project name. "
+                   "Press any button to quit."))
+            quit()
+            
         if project in projects:
             # Get the index of the item
             index = projects.index(project)
