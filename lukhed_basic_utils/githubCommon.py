@@ -323,7 +323,7 @@ class GithubHelper:
         else:
             return contents
 
-    def create_file(self, content, path_as_list_or_str, commit_message="no message"):
+    def create_file(self, content, path_as_list_or_str, message="no message"):
         """
         Creates a new file in the repository with the specified content.
 
@@ -331,7 +331,7 @@ class GithubHelper:
             content (str | dict): The content to upload. If dict, it will be converted to JSON.
             path_as_list_or_str (list | str): Path to the file in the repository,
             either as a list of directory segments or a single string.
-            commit_message (str, optional): Commit message for the new file. Defaults to "no message".
+            message (str, optional): Commit message for the new file. Defaults to "no message".
 
         Returns:
             dict: A status dictionary returned by the GitHub API after file creation.
@@ -344,17 +344,17 @@ class GithubHelper:
         """
         repo_path = self._parse_repo_dir_list_input(path_as_list_or_str)
         content = self._parse_content_for_upload(content)
-        status = self.repo.create_file(path=repo_path, message=commit_message, content=content)
+        status = self.repo.create_file(path=repo_path, message=message, content=content)
         return status
 
-    def delete_file(self, path_as_list_or_str, commit_message="Delete file"):
+    def delete_file(self, path_as_list_or_str, message="Delete file"):
         """
         Deletes a file from the repository.
 
         Parameters:
             path_as_list_or_str (list | str): Path to the file in the repository,
             either as a list of directory segments or a single string.
-            commit_message (str, optional): Commit message for the deletion. Defaults to "Delete file".
+            message (str, optional): Commit message for the deletion. Defaults to "Delete file".
 
         Returns:
             dict | str: A status dictionary returned by the GitHub API after file deletion,
@@ -366,7 +366,7 @@ class GithubHelper:
             file = self.repo.get_contents(repo_path)
 
             # Delete the file
-            status = self.repo.delete_file(path=repo_path, message=commit_message, sha=file.sha)
+            status = self.repo.delete_file(path=repo_path, message=message, sha=file.sha)
             return status
         except Exception as e:
             return e
