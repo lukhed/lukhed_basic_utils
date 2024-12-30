@@ -421,7 +421,7 @@ class GithubHelper:
         if self.file_exists(path_as_list_or_str):
             status = self.update_file(content, path_as_list_or_str, message=message)
         else:
-            status = self.create_file(content, path_as_list_or_str, content, message=message)
+            status = self.create_file(content, path_as_list_or_str, message=message)
 
         return status
 
