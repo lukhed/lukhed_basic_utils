@@ -399,7 +399,7 @@ class GithubHelper:
                                        sha=existing_contents.sha)
         return status
 
-    def create_update_file(self, path_as_list_or_str, content):
+    def create_update_file(self, path_as_list_or_str, content, message="create_update_file update"):
         """
         Creates a new file or updates an existing file with the given content.
 
@@ -419,9 +419,9 @@ class GithubHelper:
             Updated content
         """
         if self.file_exists(path_as_list_or_str):
-            status = self.update_file(path_as_list_or_str, content)
+            status = self.update_file(content, path_as_list_or_str, message=message)
         else:
-            status = self.create_file(path_as_list_or_str, content)
+            status = self.create_file(content, path_as_list_or_str, content, message=message)
 
         return status
 
