@@ -6,8 +6,10 @@ from github.GithubException import UnknownObjectException
 import json
 from typing import Optional
 
+
 class GithubHelper:
-    def __init__(self, project='your_project_name', repo_name=None, set_config_directory=None):
+    def __init__(self, project='your_project_name', repo_name=None, set_config_directory=None, 
+                 essential_print_only=False):
         """
         A helper class for interacting with GitHub repositories, handling authentication, 
         and various file operations within a repository.
@@ -26,6 +28,8 @@ class GithubHelper:
             set_config_directory (str, optional): Full path to the directory that contains your GithubHelper config 
                 file (token file). Default is None and this class will create a directory in your working directory 
                 called 'lukhedConfig' to store the GithubHelper config file.
+            essential_print_only (bool, optional): If True, will only print to console essential setup or error 
+                messages, defaults to False and full verbosity.
 
         Attributes:
             _resource_dir (str): Path to the lukhed config directory.
@@ -41,6 +45,8 @@ class GithubHelper:
                 make API calls.
     """
         
+        self.essential_print_only=essential_print_only
+
         # Check setup upon instantiation
         if set_config_directory is None:
             osC.check_create_dir_structure(['lukhedConfig'])
@@ -54,10 +60,11 @@ class GithubHelper:
         self._github_config_file = osC.append_to_dir(self._resource_dir, 'githubConfig.json')
         self._github_config = []
         self.user = None
-        self.project = None
+        self.project = project.lower()
+        self.active_project = None
         self.repo = None                                        # type: Optional[Repository]
         self._gh_object = None                                  # type: Optional[Github]
-        self._check_setup(project)
+        self._check_setup()
 
         if repo_name is not None:
             self._set_repo(repo_name)
@@ -66,7 +73,7 @@ class GithubHelper:
     ###################
     # Setup/Config
     ###################
-    def _check_setup(self, project):
+    def _check_setup(self):
         need_setup = True
         if osC.check_if_file_exists(self._github_config_file):
             # Check for an active github configuration
@@ -75,7 +82,7 @@ class GithubHelper:
                 need_setup = True
             else:
                 # check if project exists
-                self._activate_project(project)
+                self._activate_project()
                 need_setup = False
         else:
             # write default config to file
@@ -85,28 +92,25 @@ class GithubHelper:
         if need_setup:
             self._prompt_for_setup()
 
-    def _activate_project(self, project):
+    def _check_print(self, to_print):
+        if not self.essential_print_only:
+            print(to_print)
+
+    def _activate_project(self):
         try:
             projects = [x['project'].lower() for x in self._github_config]
         except Exception as e:
             input((f"ERROR: Error while trying to parse the config file. It may be corrupt."
-                   "You can delete the config directory and go through setup again. Press any button to quit."))
-            quit()
-        
-        try:
-            project = project.lower()
-        except Exception as e:
-            input((f"ERROR: Error while trying to parse project name '{project}'. Try another project name. "
-                   "Press any button to quit."))
+                   "You can delete the config directory and go through setup again. Press enter to quit."))
             quit()
             
-        if project in projects:
+        if self.project in projects:
             # Get the index of the item
-            index = projects.index(project)
+            index = projects.index(self.project)
             token = self._github_config[index]['token']
             if self._authenticate(token):
-                print(f"INFO: {project} project was activated")
-                self.active_project = project
+                self._check_print(f"INFO: {self.project} project was activated")
+                self.active_project = self.project
                 self.user = self._gh_object.get_user().login
                 return True
             else:
@@ -114,7 +118,7 @@ class GithubHelper:
                 return False
         else:
             
-            i = input((f'ERROR: There is no project "{project}" in the config file. Would you like to go thru setup '
+            i = input((f'ERROR: There is no project "{self.project}" in the config file. Would you like to go thru setup '
                    'to add a new Github key for this project name? (y/n): '))
             if i == 'y':
                 self._guided_setup()
@@ -136,19 +140,20 @@ class GithubHelper:
     def _guided_setup(self):
         input(("\n2. Starting setup\n"
                "The github key you provide in this setup will be stored locally only. "
-               "After setup, you can see the config file in your directory at /lukhedConfig/githubConfig.json."
-               "\nPress any key to continue"))
+               f"After setup, you can see the config file in your specified destination {self._github_config_file}"
+               "\nPress enter to continue"))
         
         token = input("\n3. Login to your Github account and go to https://github.com/settings/tokens. Generate a new "
                       "token and ensure to give it scopes that allow reading and writing to repos. "
                       "Copy the token, paste it below, then press enter:\n")
         token = token.replace(" ", "")
-        project = input(("\n4. Provide a project name (this is needed for using the class) and press enter. "
-                         "Note: projects are not case sensitive: "))
-        account_to_add = {"project": project.lower(), "token": token}
+        if self.project == 'your_project_name':
+            self.project = input(("\n4. Provide a project name (this is needed for using the class) and press enter. "
+                                  "Note: projects are not case sensitive: "))
+        account_to_add = {"project": self.project.lower(), "token": token}
         self._github_config.append(account_to_add)
         self._update_github_config_file()
-        self._activate_project(project)
+        self._activate_project()
 
     def _update_github_config_file(self):
         fC.dump_json_to_file(self._github_config_file, self._github_config)
@@ -163,7 +168,7 @@ class GithubHelper:
     ###################
     def _activate_repo(self, repo_name):
         self.repo = self._gh_object.get_repo(self.user + "/" + repo_name)
-        print(f"INFO: {repo_name} repo was activated")
+        self._check_print(f"INFO: {repo_name} repo was activated")
         
     def _parse_repo_dir_list_input(self, repo_dir_list):
         if repo_dir_list is None:
@@ -188,26 +193,32 @@ class GithubHelper:
             self._activate_repo(repo_name)
             return True
         except Exception as e:
-            print((f"ERROR: Error trying to set repo to {repo_name}. Maybe the repo does not exist in your account. "
-                   f"See the full error below:\n{e}"))
-            create_repo = input(f"Do you want to create a private repo named {repo_name}? (y/n) ")
+            create_repo = input(f"Your Github account doesn't have repo: '{repo_name}'. Create it? (y/n) ")
             if create_repo == 'y':
-                if self.create_repo(repo_name, private=True):
+                if self.create_repo(repo_name, private=True, create_readme=True):
+
                     self._activate_repo(repo_name)
+            else:
+                print(f"OK, no action taken to activate a repo")
+                return None
             
     def _get_repo_contents(self, repo_path):
         contents = self.repo.get_contents(repo_path)
         return contents
     
-    def create_repo(self, repo_name, description="Repo created by lukhed-basic-utils", private=True):
+    def create_repo(self, repo_name, description="Repo created by lukhed-basic-utils", private=True, 
+                    create_readme=False, readme_content=None):
         """
         Creates a new repository on GitHub.
 
         Parameters:
             repo_name (str): The name of the repository to create.
-            description (str, optional): A brief description of the repository.
+            description (str, optional): A brief description of the repository for the commit message.
             private (bool, optional): Determines whether the repository should be private. 
                                       Defaults to True (private repository).
+            create_readme (bool, optional): if True, Adds a README.md to the repo with description content.
+            readme_content (str, optional): If creating a readme, can control the content to be different than 
+                                            description.
 
         Returns:
             bool: True if the repository was created successfully, False otherwise.
@@ -222,6 +233,22 @@ class GithubHelper:
                 private=private
             )
             print(f"Repository '{repo.name}' created successfully at {repo.html_url}")
+
+            if create_readme:
+                # Define the content for the README.md file
+                if readme_content is None:
+                    readme_content = "# " + repo_name + f"\n\n{description}"
+                else:
+                    readme_content = "# " + repo_name + f"\n\n{readme_content}"
+
+                # Create the README.md file in the repository
+                repo.create_file(
+                    path="README.md",
+                    message="Initial commit with README.md",
+                    content=readme_content
+                )
+                print("README.md file created successfully.")
+
             return True
         except Exception as e:
             print(f"An error occurred: {e}")
@@ -444,3 +471,144 @@ class GithubHelper:
             return True
 
         
+class KeyManager(GithubHelper):
+    def __init__(self, key_name, config_file_preference='local', github_config_dir=None):
+        """
+        This class manages api key storage and retrieval from new api creation through continued use. 
+        There are two options for storage set by the config_file_preference parameter:
+        
+        'local' - stores/retrieve your api key on your local hard drive (working directory)
+        'github' - stores/retrieves your api key in a private repo (helpful to allow access across different hardware)
+
+        To add a new key to be managed, just instantiate the class with the desired parameters and it will walk you 
+        through the steps.
+
+        Note: github option requires a github account (free) and a private access token (free). This class will 
+        direct you on how to set that up if you are not familiar.
+
+        Once your config file is setup for your key on local or in github, instantiate the class with the same 
+        parameters and your key data will be stored in self.key_data or you can use the get_key_data() method.
+
+        Parameters
+        ----------
+        key_name : str()
+            A name for the api key that will be associated with your key in the config file. 
+            To use the key in the future, you will use this key name to identify it. It Can be anything 
+            but should be representative of the api you are using.
+        config_file_preference : str, optional
+            'local' to store your api key on your local hardware. 'github' to store 
+            your api key in a private github repository. Defaults to 'local'., by default 'local'
+        github_config_dir : str(), optional
+            Full path to a local directory that contains your GithubHelper config file (token file). Default is 
+            None and the GithubHelper class looks in your working directory for 'lukhedConfig' to get/store the 
+            GithubHelper config file. If you utilize this option, you will have to provide the location each time 
+            you want to use the key (helpful if you have multiple projects pointing to the same github access token).
+        """
+
+        self._config_dict = {}
+        self._config_type = config_file_preference.lower()
+
+        # Key name and file based on parameters
+        self.key_name = key_name
+        self.key_file_name = f"{key_name}.json"
+
+        # Set the github access token config location
+        self._default_local_config = osC.create_file_path_string(['lukhedConfig'])
+        self.github_config_dir = github_config_dir or self._default_local_config
+
+        # Default local key storage if local option chosen
+        self._local_key_storage = osC.create_file_path_string(['lukhedConfig', self.key_file_name])
+
+        # Default repo if github option chose
+        self._gh_repo = 'lukhedConfig'
+        
+        self.key_data = None
+        if self._config_type == 'github':
+            super().__init__(project=key_name, repo_name=self._gh_repo, essential_print_only=True)
+            
+            if not self._check_load_config_from_github():
+                self._guided_api_key_setup()
+        else:
+            if not self._check_load_config_from_local():
+                self._guided_api_key_setup()
+
+        self.get_key_data()
+        print(f"{self.key_name} data retrieved successfully")
+
+    def _check_load_config_from_github(self):
+        if self.file_exists(self.key_file_name):
+            self._config_dict = self.retrieve_file_content(self.key_file_name)
+            return True
+        else:
+            return False
+        
+    def _check_load_config_from_local(self):
+        config_path = osC.check_create_dir_structure(['lukhedConfig'], return_path=True)
+        config_file = osC.append_to_dir(config_path, self.key_file_name)
+        if osC.check_if_file_exists(config_file):
+            self._config_dict = fC.load_json_from_file(config_file)
+            return True
+        else:
+            return False
+        
+    def _guided_api_key_setup(self):
+        confirm = input((f"You don't have a key stored for '{self.key_name}'. Do you want to go through setup? (y/n)"))
+        if confirm != 'y':
+            print("OK, Exiting...")
+            quit()
+
+        if self._config_type == 'github':
+            input(("\n1. Starting setup\n"
+                f"The key for '{self.key_name}' you provide in this setup will be stored on your private github repo: "
+                f"'{self._gh_repo}/{self.key_file_name}'"
+                "\nPress enter to continue"))
+        elif self._config_type == 'local':
+            input(("\n1. Starting setup\n"
+                f"The key for '{self.key_name}' you provide in this setup will be stored locally at: "
+                f"{self._local_key_storage} "
+                "\nPress enter to continue"))
+        else:
+            print(f"ERROR: '{self._config_type}' is not a valid config_file_preference")
+            quit()
+            
+        token = input(f"\n2. Copy and paste your '{self.key_name}' key below.\n")
+        token = token.replace(" ", "")
+        token_dict = {"token": token}
+
+        if self._config_type == 'github':
+            r = self.create_update_file(self.key_file_name, token_dict, message=f'created config for {self.key_name}')
+            if r['commit']:
+                print(f"Config for {self.key_file_name} created successfully and the key is ready for use.")
+                self._config_dict = token_dict
+                return True
+            else:
+                print(f"ERROR: Something went wrong in creating your config file on Github. Try again and if the "
+                      "problem persists you can check and file bugs at the below link or try the local key storage "
+                      "method\n\n https://github.com/lukhed/lukhed_basic_utils")
+                return False
+        else:
+            fC.dump_json_to_file(self._local_key_storage, token_dict)
+            print(f"Config for {self.key_name} created successfully and the key is ready for use.")
+            self._config_dict = token_dict
+            return True
+        
+    def get_key_data(self):
+        """
+        Provides your store keyed data (also stored in class variable: key_data)
+
+        Returns
+        -------
+        dict()
+            {'token': 'your token'}
+        """
+
+        if self.key_data is None:
+            if self._config_type == 'github':
+                self.key_data = self.retrieve_file_content([self.key_file_name])
+            elif self._config_type == 'local':
+                self.key_data = fC.load_json_from_file(self._local_key_storage)
+            else:
+                print(f"ERROR: '{self._config_type}' is not a valid config_file_preference")
+                quit()
+            
+        return self.key_data
