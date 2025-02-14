@@ -472,7 +472,7 @@ class GithubHelper:
 
         
 class KeyManager(GithubHelper):
-    def __init__(self, key_name, config_file_preference='local', github_config_dir=None):
+    def __init__(self, key_name, config_file_preference='local', github_config_dir=None, provide_key_data=None):
         """
         This class manages api key storage and retrieval from new api creation through continued use. 
         There are two options for storage set by the config_file_preference parameter:
@@ -503,10 +503,16 @@ class KeyManager(GithubHelper):
             None and the GithubHelper class looks in your working directory for 'lukhedConfig' to get/store the 
             GithubHelper config file. If you utilize this option, you will have to provide the location each time 
             you want to use the key (helpful if you have multiple projects pointing to the same github access token).
+        provide_key_data : dict() or file path, optional
+            When adding a new key to be managed, use this option to provide the key data yourself 
+            (instead of going through the guided setup where you paste the key). This is helpful for complex keys 
+            that require more than one token or that have additional meta data with them. Two options:
+            dict or the full path str to the file that contains the json.
         """
 
         self._config_dict = {}
         self._config_type = config_file_preference.lower()
+        self._provided_key_data = provide_key_data
 
         # Key name and file based on parameters
         self.key_name = key_name
@@ -570,10 +576,19 @@ class KeyManager(GithubHelper):
         else:
             print(f"ERROR: '{self._config_type}' is not a valid config_file_preference")
             quit()
-            
-        token = input(f"\n2. Copy and paste your '{self.key_name}' key below.\n")
-        token = token.replace(" ", "")
-        token_dict = {"token": token}
+        
+        if self._provided_key_data:
+            if type(self._provided_key_data) == dict:
+                token_dict = self._provided_key_data
+            elif type(self._provided_key_data) == str:
+                token_dict = fC.load_json_from_file(self._provided_key_data)
+            else:
+                print(f"ERROR: Your input for 'provide_key_data' is not valid. Must be a dict or file path string.")
+                quit()
+        else:
+            token = input(f"\n2. Copy and paste your '{self.key_name}' key below.\n")
+            token = token.replace(" ", "")
+            token_dict = {"token": token}
 
         if self._config_type == 'github':
             r = self.create_update_file(self.key_file_name, token_dict, message=f'created config for {self.key_name}')
@@ -612,3 +627,35 @@ class KeyManager(GithubHelper):
                 quit()
             
         return self.key_data
+    
+    def force_update_key_data(self, new_key_data):
+        """
+        This function will replace your current key data (json file) with the 'new_key_data' parameter.
+
+        Parameters
+        ----------
+        new_key_data : dict() or file path
+            Two options:
+            dict or the full path str to the file that contains the json.
+        """
+
+        if type(new_key_data) == dict:
+            token_dict = new_key_data
+        elif type(new_key_data) == str:
+            token_dict = fC.load_json_from_file(new_key_data)
+        else:
+            print(f"ERROR: Your input for 'new_key_data' is not valid. Must be a dict or file path string.")
+            quit()
+
+        if self._config_type == 'github':
+            r = self.update_file(token_dict, self.key_file_name, message="lukhed_basic_utils updated key data")
+            if r['commit']:
+                updated = True
+        else:
+            self.key_data = fC.dump_json_to_file(self._local_key_storage, token_dict)
+            updated = True
+
+        if updated:
+            print("INFO: Key updated successfully")
+
+        
