@@ -543,7 +543,14 @@ class KeyManager(GithubHelper):
 
     def _check_load_config_from_github(self):
         if self.file_exists(self.key_file_name):
-            self._config_dict = self.retrieve_file_content(self.key_file_name)
+            if self._provided_key_data:
+                # rewrite the data stored on github
+                self.create_update_file(self.key_file_name, self._provided_key_data, 
+                                        'Updated key data based on provided key data input')
+                self._config_dict = self._provided_key_data
+            else:
+                # get the key data from github
+                self._config_dict = self.retrieve_file_content(self.key_file_name)
             return True
         else:
             return False
