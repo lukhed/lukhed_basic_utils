@@ -833,7 +833,7 @@ def add_days_to_date(start_date, day_increment, input_format="%Y%m%d%H%M%S", oup
     if force_return_date_object:
         return end_date
     else:
-        return convert_date_to_string(end_date, time_format=ouput_format)
+        return convert_date_to_string(end_date, string_format=ouput_format)
     
 def add_seconds_to_time_stamp(base_date_time, seconds_to_add, date_format='%Y%m%d%H%M%S', 
                               force_return_time_object=False):
