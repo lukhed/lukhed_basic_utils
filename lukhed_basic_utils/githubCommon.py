@@ -482,7 +482,7 @@ class GithubHelper:
         :param download_dir: The directory where the archive should be saved.
         :param extract: Boolean flag to extract the archive after download.
         :param rename_internal_folder: Bool to rename the internal folder to repo name
-        :return: True if download (and extraction, if requested) succeeded, otherwise False.
+        :return: Dl path if download (and extraction, if requested) succeeded, otherwise None.
         """
         
         # Choose archive format and ref (default branch in this example)
@@ -514,16 +514,19 @@ class GithubHelper:
                         zip_ref.extractall(extraction_dir)
                 except zipfile.BadZipFile:
                     print("Error: The downloaded file is not a valid zip archive.")
-                    return False
+                    return None
                 
                 if rename_internal_folder:
                     new_name = osC.append_to_dir(extraction_dir, self.repo.name)
                     gh_dir = osC.return_immediate_child_dirs_given_dir(extraction_dir)[0]
                     shutil.move(gh_dir, new_name)
-            return True
+
+                return extraction_dir
+            
+            return download_path
         else:
             print(f"Failed to download repository. HTTP status code: {response.status_code}")
-            return False
+            return None
         
 
         
