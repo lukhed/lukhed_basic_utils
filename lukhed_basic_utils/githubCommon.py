@@ -1,10 +1,14 @@
 from lukhed_basic_utils import osCommon as osC
 from lukhed_basic_utils import fileCommon as fC
+from lukhed_basic_utils import requestsCommon as rC
+from lukhed_basic_utils import timeCommon as tC
 from github import Github
 from github.Repository import Repository
 from github.GithubException import UnknownObjectException
 import json
 from typing import Optional
+import zipfile
+import shutil
 
 
 class GithubHelper:
@@ -469,6 +473,60 @@ class GithubHelper:
             return False
         else:
             return True
+        
+    def download_repository(self, download_dir, extract=False, rename_internal_folder=True):
+        """
+        Downloads the repository archive as a ZIP file into the specified download directory.
+        If 'extract' is True, the archive will be extracted into a subdirectory of download_dir.
+
+        :param download_dir: The directory where the archive should be saved.
+        :param extract: Boolean flag to extract the archive after download.
+        :param rename_internal_folder: Bool to rename the internal folder to repo name
+        :return: True if download (and extraction, if requested) succeeded, otherwise False.
+        """
+        
+        # Choose archive format and ref (default branch in this example)
+        archive_format = "zipball"
+
+        # Get the temporary archive URL for the repo
+        dl_url = self.repo.get_archive_link(archive_format)
+        
+        # Construct a filename for the archive, e.g., "username_reponame_defaultbranch.zip"
+        dl_ts = tC.create_timestamp('%Y%m%d')
+        safe_repo_name = self.repo.full_name.replace("/", "_")
+        archive_filename = f"{safe_repo_name}_{dl_ts}.zip"
+        download_path = osC.append_to_dir(download_dir, archive_filename)
+        
+        # Make the HTTP request using your custom make_request() function
+        response = rC.make_request(dl_url)
+        
+        if response.status_code == 200:
+            # Write the binary content to the download file
+            with open(download_path, "wb") as file:
+                file.write(response.content)
+            
+            if extract:
+                # Define an extraction directory (same name as archive file without the .zip extension)
+                extraction_dir = osC.append_to_dir(download_dir, f"{safe_repo_name}_{dl_ts}")
+                osC.check_create_dir_structure(extraction_dir, full_path=True)
+                try:
+                    with zipfile.ZipFile(download_path, "r") as zip_ref:
+                        zip_ref.extractall(extraction_dir)
+                except zipfile.BadZipFile:
+                    print("Error: The downloaded file is not a valid zip archive.")
+                    return False
+                
+                if rename_internal_folder:
+                    new_name = osC.append_to_dir(extraction_dir, self.repo.name)
+                    gh_dir = osC.return_immediate_child_dirs_given_dir(extraction_dir)[0]
+                    shutil.move(gh_dir, new_name)
+            return True
+        else:
+            print(f"Failed to download repository. HTTP status code: {response.status_code}")
+            return False
+        
+
+        
 
         
 class KeyManager(GithubHelper):
