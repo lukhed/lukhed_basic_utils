@@ -345,7 +345,16 @@ class GithubHelper:
             return None
 
         if decode:
-            decoded = contents.decoded_content
+            if contents.encoding == "base64":
+                decoded = contents.decoded_content
+            elif contents.download_url:
+                # For large files, use the download URL to fetch the file content
+                response = rC.make_request(contents.download_url)
+                response.raise_for_status()  # Ensure we notice bad responses
+                decoded = response.content
+            else:
+                raise ValueError(f"Unexpected file encoding: {contents.encoding}")
+        
             if '.json' in repo_path:
                 return json.loads(decoded)
             else:
