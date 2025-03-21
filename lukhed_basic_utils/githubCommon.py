@@ -542,7 +542,8 @@ class GithubHelper:
 
         
 class KeyManager(GithubHelper):
-    def __init__(self, key_name, config_file_preference='local', github_config_dir=None, provide_key_data=None):
+    def __init__(self, key_name, config_file_preference='local', github_config_dir=None, provide_key_data=None, 
+                 force_setup=False):
         """
         This class manages api key storage and retrieval from new api creation through continued use. 
         There are two options for storage set by the config_file_preference parameter:
@@ -578,11 +579,14 @@ class KeyManager(GithubHelper):
             (instead of going through the guided setup where you paste the key). This is helpful for complex keys 
             that require more than one token or that have additional meta data with them. Two options:
             dict or the full path str to the file that contains the json.
+        force_setup : bool, optional
+            If True, will force the setup to occur and skip y/n prompts. Defaults to False.
         """
 
         self._config_dict = {}
         self._config_type = config_file_preference.lower()
         self._provided_key_data = provide_key_data
+        self._force_setup = force_setup
 
         # Key name and file based on parameters
         self.key_name = key_name
@@ -635,21 +639,32 @@ class KeyManager(GithubHelper):
             return False
         
     def _guided_api_key_setup(self):
-        confirm = input((f"You don't have a key stored for '{self.key_name}'. Do you want to go through setup? (y/n)"))
-        if confirm != 'y':
-            print("OK, Exiting...")
-            quit()
+        if self._force_setup:
+            pass
+        else:
+            confirm = input((f"You don't have a key stored for '{self.key_name}'. " 
+                              "Do you want to go through setup? (y/n)"))
+            if confirm != 'y':
+                print("OK, Exiting...")
+                quit()
 
         if self._config_type == 'github':
-            input(("\n1. Starting setup\n"
-                f"The key for '{self.key_name}' you provide in this setup will be stored on your private github repo: "
-                f"'{self._gh_repo}/{self.key_file_name}'"
-                "\nPress enter to continue"))
+            if self._provided_key_data:
+                pass
+            else:
+                input(("\n1. Starting setup\n"
+                    f"The key for '{self.key_name}' you provide in this setup will be stored on your "
+                    "private github repo: "
+                    f"'{self._gh_repo}/{self.key_file_name}'"
+                    "\nPress enter to continue"))
         elif self._config_type == 'local':
-            input(("\n1. Starting setup\n"
-                f"The key for '{self.key_name}' you provide in this setup will be stored locally at: "
-                f"{self._local_key_storage} "
-                "\nPress enter to continue"))
+            if self._provided_key_data:
+                pass
+            else:
+                input(("\n1. Starting setup\n"
+                    f"The key for '{self.key_name}' you provide in this setup will be stored locally at: "
+                    f"{self._local_key_storage} "
+                    "\nPress enter to continue"))
         else:
             print(f"ERROR: '{self._config_type}' is not a valid config_file_preference")
             quit()
