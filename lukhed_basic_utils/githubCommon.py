@@ -537,10 +537,7 @@ class GithubHelper:
             print(f"Failed to download repository. HTTP status code: {response.status_code}")
             return None
         
-
-        
-
-        
+  
 class KeyManager(GithubHelper):
     def __init__(self, key_name, config_file_preference='local', github_config_dir=None, provide_key_data=None, 
                  force_setup=False):
@@ -750,4 +747,35 @@ class KeyManager(GithubHelper):
         if updated:
             print("INFO: Key updated successfully")
 
-        
+
+def get_github_json(owner, repo, path, provide_full_url=None):
+    """
+    Fetches a JSON file from a GitHub repository.
+
+    Parameters
+    ----------
+    owner : str
+        The owner of the repository.
+    repo : str
+        The name of the repository.
+    path : str
+        The path to the JSON file in the repository.
+    provide_full_url : str, optional
+        If provided, will use this URL instead of constructing one from the owner, repo, and path. 
+        Defaults to None.
+
+    Returns
+    -------
+    dict
+        The JSON data from the specified
+    """
+    if provide_full_url:
+        url = provide_full_url
+    else:
+        # Construct raw content URL
+        url = f"https://raw.githubusercontent.com/{owner}/{repo}/main/{path}"
+    
+    # Send GET request
+    response = rC.request_json(url)
+    
+    return response
