@@ -779,3 +779,51 @@ def get_github_json(owner, repo, path, provide_full_url=None):
     response = rC.request_json(url)
     
     return response
+
+def get_github_image(owner, repo, path, provide_full_url=None, save_path=None):
+    """
+    Fetches an image file from a GitHub repository.
+
+    Parameters
+    ----------
+    owner : str
+        The owner of the repository.
+    repo : str
+        The name of the repository.
+    path : str
+        The path to the image file in the repository.
+    provide_full_url : str, optional
+        If provided, will use this URL instead of constructing one from the owner, repo, and path.
+        Defaults to None.
+    save_path : str, optional
+        If provided, saves the image to the specified path.
+        Defaults to None, which returns the binary content.
+
+    Returns
+    -------
+    bytes or bool
+        The binary image data if save_path is None, otherwise True if successful or False if failed.
+    """
+    if provide_full_url:
+        url = provide_full_url
+    else:
+        # Construct raw content URL
+        url = f"https://raw.githubusercontent.com/{owner}/{repo}/main/{path}"
+    
+    # Send GET request
+    response = rC.make_request(url)
+    
+    if response.status_code == 200:
+        if save_path:
+            try:
+                with open(save_path, 'wb') as f:
+                    f.write(response.content)
+                return True
+            except Exception as e:
+                print(f"Error saving image: {e}")
+                return False
+        else:
+            return response.content
+    else:
+        print(f"Failed to fetch image. Status code: {response.status_code}")
+        return False

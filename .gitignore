@@ -164,3 +164,4 @@ cython_debug/
 lukhedConfig/
 sanity_tests.py
 lukhedKeyManager/
+lukhedCache/
