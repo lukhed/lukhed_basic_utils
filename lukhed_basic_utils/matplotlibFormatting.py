@@ -1,8 +1,7 @@
-from matplotlib.offsetbox import OffsetImage, AnnotationBbox
+from matplotlib.offsetbox import AnnotationBbox
 import matplotlib.dates as mdates
 from matplotlib import ticker
-import numpy as np
-from matplotlib import pyplot as plt
+from lukhed_basic_utils import matplotlibBasics, mathCommon as mC
 
 
 def resize_plot_for_twitter(ax):
@@ -89,6 +88,7 @@ def basic_formatting(ax, hide_y_axis=False, hide_x_axis=False, x_margin="auto", 
                      y_range_tuple=None, x_range_tuple=None, y_step_size="auto", x_step_size="auto",
                      chart_area_color="white", x_label_size=None, x_label_color=None, y_label_size=None,
                      y_label_color=None, x_tick_color=None, y_tick_color=None):
+    np = mC.get_np()
     if hide_x_axis:
         ax.axes.xaxis.set_visible(False)
     if hide_y_axis:
@@ -131,6 +131,7 @@ def basic_formatting_fig(fig, background_color="white"):
 
 
 def set_detailed_ticks(ax, axis, start, end, step, tick_type="major"):
+    np = mC.get_np()
     ticks = np.arange(start, end, step)
     if axis == "x":
         if tick_type == "major":
@@ -154,15 +155,11 @@ def parse_image_zoom_parameter(image_zoom, x_list):
     return image_zoom
 
 
-def get_image_for_chart(path, plt, zoom):
-    return OffsetImage(plt.imread(path), zoom=zoom)
-
-
 def add_images_to_chart(ax, x_list, y_list, image_list, image_zoom=1, image_x_offset=0, image_y_offset=0):
     # Add images above y data point
     for x0, y0, path in zip(x_list, y_list, image_list):
         ab = AnnotationBbox(
-            get_image_for_chart(path, plt, image_zoom),
+            matplotlibBasics.get_image(path, matplotlibBasics.get_plt(), image_zoom),
             (x0 + image_x_offset, y0 + image_y_offset), frameon=False)
         ax.add_artist(ab)
 
@@ -293,10 +290,3 @@ def bar_chart_formatting(ax, y_range_tuple=None, bar_colors=None, bar_width_mult
         ax.grid()
 
     return ax
-
-def get_plt():
-    """
-    This function is used to get the plt object from the module. It is used to avoid circular imports.
-    :return:
-    """
-    return plt

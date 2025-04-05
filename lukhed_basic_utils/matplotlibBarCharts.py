@@ -1,13 +1,12 @@
-from lukhed_basic_utils import osCommon as osC
-from matplotlib.offsetbox import OffsetImage, AnnotationBbox
-import numpy as np
-from lukhed_basic_utils import matplotlibFormatting
+from matplotlib.offsetbox import AnnotationBbox
+from lukhed_basic_utils import matplotlibBasics, matplotlibFormatting, mathCommon as mC
 
 def bar_chart_with_images_as_labels(x_list, y_list, image_list, image_zoom="auto", show_image=False, save_image=None,
                                     y_range_tuple=None, bar_colors=None, bar_width_multiplier=None, twitter_resize=True,
                                     image_y_offset=0, image_x_offset=0, hide_x_axis=False, hide_y_axis=False,
                                     x_margin="auto", y_margin="auto", grid=False):
-    plt = matplotlibFormatting.get_plt()
+    np = mC.get_np()
+    plt = matplotlibBasics.get_plt()
     fig, ax = plt.subplots(figsize=(16, 9))     # returns figure and axes (axes.Axes)
     # https://matplotlib.org/stable/api/axes_api.html#matplotlib.axes.Axes
     # https://matplotlib.org/stable/api/figure_api.html#matplotlib.figure.Figure
@@ -21,7 +20,7 @@ def bar_chart_with_images_as_labels(x_list, y_list, image_list, image_zoom="auto
 
     # Add images above y data point
     for x0, y0, path in zip(np.arange(0, len(x_list)), y_list, image_list):
-        ab = AnnotationBbox(get_image(path, plt, image_zoom), (x0 + image_x_offset, y0 + image_y_offset), frameon=False)
+        ab = AnnotationBbox(matplotlibBasics.get_image(path, plt, image_zoom), (x0 + image_x_offset, y0 + image_y_offset), frameon=False)
         ax.add_artist(ab)
 
 
@@ -49,9 +48,5 @@ def bar_chart_with_images_as_labels(x_list, y_list, image_list, image_zoom="auto
         "x": x_list,
         "y": y_list
     }
-
-
-def get_image(path, plt, zoom):
-    return OffsetImage(plt.imread(path), zoom=zoom)
 
     
