@@ -1,6 +1,43 @@
 from lukhed_basic_utils import osCommon as osC
 from lukhed_basic_utils import fileCommon as fC
 from lukhed_basic_utils import timeCommon as tC
+from lukhed_basic_utils.githubCommon import KeyManager
+from typing import Optional
+
+class LukhedAuth:
+    """
+    This class is used to manage authentication for Lukhed projects.
+    """
+    def __init__(self, project_name, key_management='github'):
+        osC.check_create_dir_structure(['lukhedConfig'])
+        self._project_name = project_name
+
+        self._key_management = key_management.lower()
+        if self._key_management != 'github' and self._key_management != 'local':
+            raise ValueError("key_management must be either 'github' or 'local'.")
+        
+        self._auth_local_path = osC.create_file_path_string(['lukhedConfig', project_name + ".json"])
+        self.kM = None                                  # type: Optional[KeyManager]
+        self._auth_data = None
+
+        self._check_create_km()
+
+    def set_auth_data(self, auth_data: dict):
+        """
+        Set the authentication data for the SQL helper.
+        :param auth_data: Dictionary containing authentication data.
+        """
+        self._auth_data = auth_data
+
+    def _check_create_km(self):
+        if self.kM is None:
+            # get the key data previously setup and make sure local token file schwab uses is up to date
+            self.kM = KeyManager(self._project_name, config_file_preference=self._key_management, 
+                                 skip_project_setup=True)
+            self._auth_data = self.kM.key_data
+            if self._auth_data is not None:
+                fC.dump_json_to_file(self._auth_local_path, self._auth_data)
+
 
 class AceLogging:
     """

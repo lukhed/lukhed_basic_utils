@@ -26,6 +26,7 @@ setup(
         "matplotlib>=3.10.1",
         "numpy>=2.2.4",
         "pandas>=2.2.3",
-        "scipy>=1.15.2"
+        "scipy>=1.15.2",
+        "mysql-connector-python>=8.0.0"
     ],
 )
