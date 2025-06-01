@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="lukhed_basic_utils",
-    version="1.5.0",
+    version="1.6.0",
     description="A collection of basic utility functions",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
@@ -26,6 +26,7 @@ setup(
         "matplotlib>=3.10.1",
         "numpy>=2.2.4",
         "pandas>=2.2.3",
-        "scipy>=1.15.2"
+        "scipy>=1.15.2",
+        "mysql-connector-python>=8.0.0"
     ],
 )

@@ -540,7 +540,7 @@ class GithubHelper:
   
 class KeyManager(GithubHelper):
     def __init__(self, key_name, config_file_preference='local', github_config_dir=None, provide_key_data=None, 
-                 force_setup=False):
+                 force_setup=False, skip_project_setup=False):
         """
         This class manages api key storage and retrieval from new api creation through continued use. 
         There are two options for storage set by the config_file_preference parameter:
@@ -578,12 +578,16 @@ class KeyManager(GithubHelper):
             dict or the full path str to the file that contains the json.
         force_setup : bool, optional
             If True, will force the setup to occur and skip y/n prompts. Defaults to False.
+        skip_project_setup : bool, optional
+            If True, will skip the project specific setup, allowing you to set a key outside setup prompts (use force 
+            update key).
         """
 
         self._config_dict = {}
         self._config_type = config_file_preference.lower()
         self._provided_key_data = provide_key_data
         self._force_setup = force_setup
+        self._skip_project_setup = skip_project_setup
 
         # Key name and file based on parameters
         self.key_name = key_name
@@ -604,10 +608,13 @@ class KeyManager(GithubHelper):
             super().__init__(project=key_name, repo_name=self._gh_repo, essential_print_only=True)
             
             if not self._check_load_config_from_github():
-                self._guided_api_key_setup()
+                if not self._skip_project_setup:
+                    self._guided_api_key_setup()
+
         else:
             if not self._check_load_config_from_local():
-                self._guided_api_key_setup()
+                if not self._skip_project_setup:
+                    self._guided_api_key_setup()
 
         self.get_key_data()
         print(f"{self.key_name} data retrieved successfully")
@@ -737,7 +744,7 @@ class KeyManager(GithubHelper):
             quit()
 
         if self._config_type == 'github':
-            r = self.update_file(token_dict, self.key_file_name, message="lukhed_basic_utils updated key data")
+            r = self.create_update_file(self.key_file_name, token_dict, message="lukhed_basic_utils updated key data")
             if r['commit']:
                 updated = True
         else:
