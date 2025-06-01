@@ -274,26 +274,61 @@ class SqlHelper(classCommon.LukhedAuth):
 
     ########################
     # Table Data Management: Data Checks and Queries
-    def display_table_in_console(self, table_name, max_rows=20):
+    def display_table_in_console(self, table_name, max_rows=20, min_column_width=15):
+        """
+        Display a formatted table in the console with proper alignment and borders.
+
+        Parameters
+        ----------
+        table_name : str
+            Name of the table to display
+        max_rows : int, optional
+            Maximum number of rows to display (default is 20)
+        min_column_width : int, optional
+            Minimum width for each column (default is 15)
+
+        Returns
+        -------
+        None
+        """
         self._check_connect_db()
         select_query = f"SELECT * FROM {table_name}"
         self.cursor.execute(select_query)
 
+        # Get columns and data
         columns = [column[0] for column in self.cursor.description]
         data = self.cursor.fetchmany(max_rows) if max_rows else self.cursor.fetchall()
 
-        print(f"Table: {table_name}")
-        print('-' * (15 * len(columns) + len(columns) - 1))
+        # Calculate column widths
+        col_widths = []
+        for i, col in enumerate(columns):
+            # Get max width of column content including header
+            content_width = max(
+                max(len(str(row[i])) for row in data) if data else 0,
+                len(col)
+            )
+            col_widths.append(max(content_width + 2, min_column_width))
 
-        # Print header (column names)
-        print(' | '.join(columns))
-        print('-' * (15 * len(columns) + len(columns) - 1))
+        # Create separator line
+        separator = '+' + '+'.join('-' * width for width in col_widths) + '+'
+
+        # Print table header
+        print(f"\nTable: {table_name}")
+        print(separator)
+        print('|' + '|'.join(
+            f"{col:^{width}}" for col, width in zip(columns, col_widths)
+        ) + '|')
+        print(separator)
 
         # Print data rows
         for row in data:
-            print(' | '.join(str(cell) for cell in row))
+            print('|' + '|'.join(
+                f"{str(cell):^{width}}" for cell, width in zip(row, col_widths)
+            ) + '|')
 
-        print('-' * (15 * len(columns) + len(columns) - 1))
+        print(separator)
+        if max_rows and len(data) == max_rows:
+            print(f"Note: Showing first {max_rows} rows only.")
     
     def get_table_as_list(self, table_name, max_rows=None):
         self._check_connect_db()
