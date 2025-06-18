@@ -113,8 +113,8 @@ class SqlHelper(classCommon.LukhedAuth):
 
     def change_database(self, database_name):
         self.close_connection()
-        self.database = database_name
-        print("New database is: " + self.database)
+        self.database_name = database_name
+        print("New database is: " + self.database_name)
 
     def update_auth_data(self, force_new_auth_dict=None):
         if force_new_auth_dict is not None:
@@ -1171,14 +1171,24 @@ class SqlHelper(classCommon.LukhedAuth):
 
         Returns
         -------
+        cursor
+            For SELECT queries, returns cursor for fetching results
         None
+            For other queries
         """
         self._check_connect_db()
         if params is None:
             self.cursor.execute(query)
         else:
             self.cursor.execute(query, params)
+
+        # For SELECT queries, return cursor for fetching results
+        if query.strip().upper().startswith('SELECT'):
+            return self.cursor
+        
+        # For other queries (UPDATE, INSERT, etc), commit and return None
         self.db_connection.commit()
+        return None
 
 
     ###################
