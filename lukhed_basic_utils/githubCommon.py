@@ -617,7 +617,6 @@ class KeyManager(GithubHelper):
                     self._guided_api_key_setup()
 
         self.get_key_data()
-        print(f"{self.key_name} data retrieved successfully")
 
     def _check_load_config_from_github(self):
         if self.file_exists(self.key_file_name):
@@ -717,7 +716,10 @@ class KeyManager(GithubHelper):
             if self._config_type == 'github':
                 self.key_data = self.retrieve_file_content([self.key_file_name])
             elif self._config_type == 'local':
-                self.key_data = fC.load_json_from_file(self._local_key_storage)
+                try:
+                    self.key_data = fC.load_json_from_file(self._local_key_storage)
+                except Exception as e:
+                    self.key_data = None
             else:
                 print(f"ERROR: '{self._config_type}' is not a valid config_file_preference")
                 quit()
