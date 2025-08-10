@@ -125,7 +125,7 @@ class GithubHelper:
             i = input((f'ERROR: There is no project "{self.project}" in the config file. Would you like to go thru setup '
                    'to add a new Github key for this project name? (y/n): '))
             if i == 'y':
-                self._guided_setup()
+                self._gh_guided_setup()
             else:
                 print("Ok, exiting...")
                 quit()
@@ -133,7 +133,7 @@ class GithubHelper:
     def _prompt_for_setup(self):
         i = input("1. You do not have a valid config file to utilize github. Do you want to go thru easy setup? (y/n):")
         if i == 'y':
-            self._guided_setup()
+            self._gh_guided_setup()
         elif i == 'n':
             print("OK, to use github functions, see https://github.com/lukhed/lukhed_basic_utils for more information.")
             quit()
@@ -141,7 +141,7 @@ class GithubHelper:
             print("Did not get an expected result of 'y' or 'n'. Please reinstantiate and try again. Exiting script.")
             quit()
 
-    def _guided_setup(self):
+    def _gh_guided_setup(self):
         input(("\n2. Starting setup\n"
                "The github key you provide in this setup will be stored locally only. "
                f"After setup, you can see the config file in your specified destination {self._github_config_file}"
