@@ -101,29 +101,59 @@ class GithubHelper:
             print(to_print)
 
     def _activate_project(self):
+        
+        
+        def _search_config_file():
+            if self.project in projects:
+                # Get the index of the item
+                index = projects.index(self.project)
+                token = self._github_config[index]['token']
+                if self._authenticate(token):
+                    self._check_print(f"INFO: {self.project} project was activated")
+                    self.active_project = self.project
+                    self.user = self._gh_object.get_user().login
+                    return True
+                else:
+                    print("ERROR: Error while trying to authenticate.")
+                    return False
+            else:
+                return False
+
+        # First check projects in local config file
         try:
             projects = [x['project'].lower() for x in self._github_config]
         except Exception as e:
             input((f"ERROR: Error while trying to parse the config file. It may be corrupt."
                    "You can delete the config directory and go through setup again. Press enter to quit."))
             quit()
-            
-        if self.project in projects:
-            # Get the index of the item
-            index = projects.index(self.project)
-            token = self._github_config[index]['token']
+
+        
+        if _search_config_file():
+            # project already in local config file
+            return True
+        
+        # Try updating local config file with github data
+        try:
+            token = self._github_config[0]['token']
             if self._authenticate(token):
-                self._check_print(f"INFO: {self.project} project was activated")
-                self.active_project = self.project
+                print(f"INFO: Checking projects associated with github account")
                 self.user = self._gh_object.get_user().login
-                return True
-            else:
-                print("ERROR: Error while trying to authenticate.")
-                return False
-        else:
-            
-            i = input((f'ERROR: There is no project "{self.project}" in the config file. Would you like to go thru setup '
-                   'to add a new Github key for this project name? (y/n): '))
+                self._activate_repo(self._gh_repo)
+                files = self.get_files_in_repo_path("")
+                files = [x.replace(".md", "").replace(".json", "").replace(".txt", "").lower() for x in files]
+                if self.project in files:
+                    print(f"INFO: Found project '{self.project}' in github account, adding to local config")
+                    self._github_config.append({"project": self.project, "token": token})
+                    self._update_github_config_file()
+                    self.active_project = self.project
+                    return True
+
+        except Exception as e:
+            try_setup = True
+
+        if try_setup:
+            i = input((f'INFO: There is no project "{self.project}" in the config file. Would you like to go thru setup '
+                'to add a new Github key for this project name? (y/n): '))
             if i == 'y':
                 self._gh_guided_setup()
             else:
