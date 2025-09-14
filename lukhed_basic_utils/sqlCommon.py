@@ -2153,6 +2153,30 @@ class PostgresSqlHelper(classCommon.LukhedAuth):
 
     ###################
     # General Query Execution
+    def get_distinct_column_values(self, table_name, column_name):
+        """
+        Get distinct values in a specified column.
+
+        Parameters
+        ----------
+        table_name : str
+            Name of the table
+        column_name : str
+            Name of the column
+
+        Returns
+        -------
+        list
+            List of distinct values in the column
+        """
+        self._check_connect_db()
+        query = sql.SQL("SELECT DISTINCT {} FROM {}").format(
+            sql.Identifier(column_name),
+            sql.Identifier(table_name)
+        )
+        self.cursor.execute(query)
+        return [row[0] for row in self.cursor.fetchall()]
+    
     def execute_query(self, query, params=None):
         """
         Execute a SQL query with optional parameters.
