@@ -7,6 +7,7 @@ import json
 import psycopg2
 import atexit
 from psycopg2 import sql
+import io
 
 class SqlHelper(classCommon.LukhedAuth):
     def __init__(self, datbase_project, datbase_name, key_management='github', auth_type='basic', 
@@ -621,13 +622,13 @@ class SqlHelper(classCommon.LukhedAuth):
         # Construct the SQL query for insertion
         placeholders = ", ".join(["%s"] * len(table_columns))
         columns_str = ", ".join(table_columns)
-        query = f"INSERT INTO {table_name} ({columns_str}) VALUES ({placeholders});"
+        query = f"INSERT INTO {table_name} ({columns_str}) VALUES ({placeholders})"
 
         try:
-            # Execute the query for multiple rows
-            for row_values in table_rows_list_of_list:
-                self.cursor.execute(query, row_values)
+            # Use executemany for bulk insert - much faster than individual executes
+            self.cursor.executemany(query, table_rows_list_of_list)
             self.db_connection.commit()
+            print(f"Successfully inserted {len(table_rows_list_of_list)} rows into {table_name}")
 
         except Exception as e:
             self.db_connection.rollback()
@@ -1758,26 +1759,16 @@ class PostgresSqlHelper(classCommon.LukhedAuth):
             return False
 
     def insert_data_as_table(self, table_name, table_columns, table_rows_list_of_list):
-        """
-        Insert multiple rows into a PostgreSQL table.
-
-        Parameters
-        ----------
-        table_name : str
-        table_columns : list of str
-        table_rows_list_of_list : list of list
-        """
         self._check_connect_db()
-
-        query = sql.SQL("INSERT INTO {} ({}) VALUES ({})").format(
-            sql.Identifier(table_name),
-            sql.SQL(', ').join(map(sql.Identifier, table_columns)),
-            sql.SQL(', ').join(sql.Placeholder() * len(table_columns))
-        )
-
+        
+        # Create CSV-like string buffer
+        output = io.StringIO()
+        for row in table_rows_list_of_list:
+            output.write('\t'.join(str(v) for v in row) + '\n')
+        output.seek(0)
+        
         try:
-            for row_values in table_rows_list_of_list:
-                self.cursor.execute(query, row_values)
+            self.cursor.copy_from(output, table_name, columns=table_columns, sep='\t')
             self.db_connection.commit()
         except Exception as e:
             self.db_connection.rollback()
