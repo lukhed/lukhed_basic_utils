@@ -1,3 +1,4 @@
+from collections import Counter
 from random import randint
 
 
@@ -273,24 +274,30 @@ def check_for_key_in_list_of_dicts_given_key(list_of_dicts, key):
             return dictionary
     return None
 
-def rank_list_of_numbers(numbers):
+def rank_list_of_numbers(numbers, ascending=False):
     """
-    Ranks a list of numbers, assigning tied ranks for duplicate values.
-
-    Parameters:
-        numbers (list): The list of numbers to rank.
-
-    Returns:
-        list: A list of rank strings corresponding to the input numbers.
-
-    Example:
-        >>> rank_list_of_numbers([4, 2, 4, 5, 1])
-        ['T-2', 'T-1', 'T-2', '4', '1']
+    Competition ranking: tied values get the same rank; subsequent rank skips
+    by the count of tied items. Example (desc): [100, 90, 90, 80] -> ['1', 'T-2', 'T-2', '4']
     """
-    sorted_numbers = sorted(set(numbers), reverse=True)
-    ranks = {num: f'T-{rank+1}' if numbers.count(num) > 1 else str(rank+1)
-             for rank, num in enumerate(sorted_numbers)}
-    return [ranks[number] for number in numbers]
+    counts = Counter(numbers)
+    # Order for ranking: highest-first if ascending=False, else lowest-first
+    sorted_all = sorted(numbers, reverse=not ascending)
+    seen = set()
+    val_order = []
+    for v in sorted_all:
+        if v not in seen:
+            seen.add(v)
+            val_order.append(v)
+
+    rank = 1
+    rank_map = {}
+    for val in val_order:
+        c = counts[val]
+        label = f"T-{rank}" if c > 1 else str(rank)
+        rank_map[val] = label
+        rank += c  # skip ahead by how many had this value
+
+    return [rank_map[n] for n in numbers]
 
 def split_list_into_chunks(original_list, chunk_size):
     """
