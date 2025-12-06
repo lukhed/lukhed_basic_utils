@@ -132,6 +132,7 @@ class GithubHelper:
             # project already in local config file
             return True
         
+        try_setup = True
         # Try updating local config file with github data
         try:
             token = self._github_config[0]['token']
@@ -149,7 +150,7 @@ class GithubHelper:
                     return True
 
         except Exception as e:
-            try_setup = True
+            pass
 
         if try_setup:
             i = input((f'INFO: There is no project "{self.project}" in the config file. Would you like to go thru setup '
