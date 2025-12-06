@@ -102,7 +102,6 @@ class GithubHelper:
 
     def _activate_project(self):
         
-        
         def _search_config_file():
             if self.project in projects:
                 # Get the index of the item
@@ -133,6 +132,7 @@ class GithubHelper:
             return True
         
         # Try updating local config file with github data
+        try_setup = True
         try:
             token = self._github_config[0]['token']
             if self._authenticate(token):
@@ -149,7 +149,7 @@ class GithubHelper:
                     return True
 
         except Exception as e:
-            try_setup = True
+            pass
 
         if try_setup:
             i = input((f'INFO: There is no project "{self.project}" in the config file. Would you like to go thru setup '
@@ -172,6 +172,8 @@ class GithubHelper:
             quit()
 
     def _gh_guided_setup(self):
+        # First check to see if user already has a github token available
+
         input(("\n2. Starting setup\n"
                "The github key you provide in this setup will be stored locally only. "
                f"After setup, you can see the config file in your specified destination {self._github_config_file}"
