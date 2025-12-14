@@ -173,19 +173,51 @@ class GithubHelper:
 
     def _gh_guided_setup(self):
         # First check to see if user already has a github token available
+        have_token = False
+        if osC.check_if_file_exists(self._github_config_file):
+            contents = fC.load_json_from_file(self._github_config_file)
+            p_count = 0
+            for p in contents:
+                try:
+                    p_name = p['project']
+                    t_str = p['token']
+                    if p_count ==0:
+                        print("\nAvailable projects:")
+                    p_count += 1
+                    print(f"Project # {p_count}: {p_name} - Token: {t_str}")
+                except KeyError as e:
+                    pass
 
-        input(("\n2. Starting setup\n"
-               "The github key you provide in this setup will be stored locally only. "
-               f"After setup, you can see the config file in your specified destination {self._github_config_file}"
-               "\nPress enter to continue"))
-        
-        token = input("\n3. Login to your Github account and go to https://github.com/settings/tokens. Generate a new "
-                      "token and ensure to give it scopes that allow reading and writing to repos. "
-                      "Copy the token, paste it below, then press enter:\n")
-        token = token.replace(" ", "")
-        if self.project == 'your_project_name':
-            self.project = input(("\n4. Provide a project name (this is needed for using the class) and press enter. "
-                                  "Note: projects are not case sensitive: "))
+        if p_count > 0:
+            print("\n")
+            i = input((f"INFO: You have {p_count} project(s) already setup. You can use the github token with any of "
+                       f"the associated projects by typing the number of the project you want to use. "
+                        "Or type 'n' to add a new project and token: "))
+            if i != 'n':
+                try:
+                    i = int(i) - 1
+                    token = self._github_config[i]['token']
+                    self.project = self._github_config[i]['project']
+                    have_token = True
+                except Exception as e:
+                    pass
+
+        if not have_token:
+            input(("\n2. Starting setup\n"
+                "The github key you provide in this setup will be stored locally only. "
+                f"After setup, you can see the config file in your specified destination {self._github_config_file}"
+                "\nPress enter to continue"))
+            
+            token = input("\n3. Login to your Github account and go to https://github.com/settings/tokens. Generate a new "
+                        "token and ensure to give it scopes that allow reading and writing to repos. "
+                        "Copy the token, paste it below, then press enter:\n")
+            token = token.replace(" ", "")
+            if self.project == 'your_project_name':
+                self.project = input(("\n4. Provide a project name (this is needed for using the class) and press enter. "
+                                    "Note: projects are not case sensitive: "))
+        else:
+            print(f"INFO: Activating project '{self.project}' with existing token")
+
         account_to_add = {"project": self.project.lower(), "token": token}
         self._github_config.append(account_to_add)
         self._update_github_config_file()
