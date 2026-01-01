@@ -208,9 +208,13 @@ class GithubHelper:
                 f"After setup, you can see the config file in your specified destination {self._github_config_file}"
                 "\nPress enter to continue"))
             
-            token = input("\n3. Login to your Github account and go to https://github.com/settings/tokens. Generate a new "
-                        "token and ensure to give it scopes that allow reading and writing to repos. "
-                        "Copy the token, paste it below, then press enter:\n")
+            token = input(
+                "\n3. Paste your github access token below and press enter:\n" \
+                "   - If you already have a github account with a full scope access token or where you use lukhed "
+                " classes, use this token. \n"
+                "   - If you are setting up for the first time, create/login to your Github account and go to " \
+                "https://github.com/settings/tokens. Generate a new token and ensure to give it scopes that "
+                "allow reading and writing to repos\n")
             token = token.replace(" ", "")
             if self.project == 'your_project_name':
                 self.project = input(("\n4. Provide a project name (this is needed for using the class) and press enter. "
