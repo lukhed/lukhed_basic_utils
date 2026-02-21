@@ -1325,7 +1325,11 @@ class PostgresSqlHelper(classCommon.LukhedAuth):
             raise ValueError(f"Unsupported auth_type: {self.auth_type}")
 
     def _check_connect_db(self):
-        if self.db_connection is None:
+        if self.db_connection is None or self.cursor is None or self.cursor.closed:
+            self.connect()
+        elif not self.db_connection.closed:
+            pass  # Connection is good
+        else:
             self.connect()
 
     def connect(self):
