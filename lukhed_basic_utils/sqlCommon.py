@@ -616,6 +616,17 @@ class SqlHelper(classCommon.LukhedAuth):
             Column names
         table_rows_list_of_list : list of lists
             Each inner list contains values for a row
+
+        Returns
+        -------
+        int
+            Number of rows inserted
+
+        Raises
+        ------
+        Exception
+            Whatever the database raised, after rolling back. This used to print the error and return
+            normally, so a caller could not tell a failed load from a finished one.
         """
         self._check_connect_db()
 
@@ -630,9 +641,11 @@ class SqlHelper(classCommon.LukhedAuth):
             self.db_connection.commit()
             print(f"Successfully inserted {len(table_rows_list_of_list)} rows into {table_name}")
 
-        except Exception as e:
+        except Exception:
             self.db_connection.rollback()
-            print(f"An error occurred: {e}")
+            raise
+
+        return len(table_rows_list_of_list)
 
     def update_single_value_in_table(self, table_name, column_to_update, new_value, *lookup_condition_tuples):
         """
@@ -1762,21 +1775,73 @@ class PostgresSqlHelper(classCommon.LukhedAuth):
             print("Data already exists in the table matching the information you are trying to add.")
             return False
 
+    @staticmethod
+    def _copy_text_value(value):
+        """
+        One value in COPY's text format.
+
+        COPY reads \\N as NULL and gives a backslash special meaning, so a value
+        has to be written in that format rather than with str(). str(None) is
+        "None", which a text column stores as the word and a numeric column
+        rejects; an unescaped backslash, tab or newline shifts or corrupts the
+        row. dicts and lists are written as JSON, for json/jsonb columns.
+        """
+        if value is None:
+            return '\\N'
+        if isinstance(value, (dict, list)):
+            value = json.dumps(value)
+        return (str(value)
+                .replace('\\', '\\\\')
+                .replace('\t', '\\t')
+                .replace('\n', '\\n')
+                .replace('\r', '\\r'))
+
     def insert_data_as_table(self, table_name, table_columns, table_rows_list_of_list):
+        """
+        Bulk insert rows with COPY.
+
+        Parameters
+        ----------
+        table_name : str
+            Name of the table. Quoted as an identifier, so hyphenated names work.
+        table_columns : list of str
+            Column names, in the order of each row's values
+        table_rows_list_of_list : list of lists
+            Each inner list contains values for a row. None is inserted as NULL, and a dict or list is
+            inserted as JSON.
+
+        Returns
+        -------
+        int
+            Number of rows inserted
+
+        Raises
+        ------
+        Exception
+            Whatever the database raised, after rolling back. This used to print the error and return
+            normally, so a caller could not tell a failed load from a finished one -- a job that loads a
+            staging table and then swaps it in would publish an empty table.
+        """
         self._check_connect_db()
-        
-        # Create CSV-like string buffer
+
         output = io.StringIO()
         for row in table_rows_list_of_list:
-            output.write('\t'.join(str(v) for v in row) + '\n')
+            output.write('\t'.join(self._copy_text_value(v) for v in row) + '\n')
         output.seek(0)
-        
+
+        query = sql.SQL("COPY {} ({}) FROM STDIN").format(
+            sql.Identifier(table_name),
+            sql.SQL(', ').join(map(sql.Identifier, table_columns))
+        )
+
         try:
-            self.cursor.copy_from(output, table_name, columns=table_columns, sep='\t')
+            self.cursor.copy_expert(query, output)
             self.db_connection.commit()
-        except Exception as e:
+        except Exception:
             self.db_connection.rollback()
-            print(f"An error occurred: {e}")
+            raise
+
+        return len(table_rows_list_of_list)
 
     def update_single_value_in_table(self, table_name, column_to_update, new_value, *lookup_condition_tuples):
         """
